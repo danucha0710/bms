@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Feb 04, 2025 at 04:03 AM
+-- Generation Time: Feb 10, 2025 at 11:09 PM
 -- Server version: 10.4.27-MariaDB
 -- PHP Version: 7.4.33
 
@@ -69,7 +69,8 @@ CREATE TABLE `borrow_log` (
 --
 
 INSERT INTO `borrow_log` (`bl_id`, `mem_id`, `bl_text`, `bl_date`) VALUES
-(1, '0000000000000', 'แก้ไขการตั้งค่าระบบ st_max_amount_common > 80000\n		st_max_amount_emergency > 5000\n		st_amount_cost_teacher > 2000\n		st_amount_cost_officer > 1000\n		st_max_months_common > 40\n		st_max_months_emergency > 5\n		st_interest > 9\n		st_stock_price > 200\n		st_dividend_rate > 4.5\n		st_average_return_rate > 10\n		st_dateline > 30', '2025-01-31 10:45:30');
+(1, '0000000000000', 'แก้ไขการตั้งค่าระบบ st_max_amount_common > 80000\n		st_max_amount_emergency > 5000\n		st_amount_cost_teacher > 2000\n		st_amount_cost_officer > 1000\n		st_max_months_common > 40\n		st_max_months_emergency > 5\n		st_interest > 9\n		st_stock_price > 200\n		st_dividend_rate > 4.5\n		st_average_return_rate > 10\n		st_dateline > 30', '2025-01-31 10:45:30'),
+(2, '0000000000000', 'แก้ไขการตั้งค่าระบบ st_max_amount_common > 80000\n		st_max_amount_emergency > 5000\n		st_amount_cost_teacher > 2000\n		st_amount_cost_officer > 1000\n		st_max_months_common > 40\n		st_max_months_emergency > 5\n		st_interest > 9\n		st_stock_price > 200\n		st_dividend_rate > 4.5\n		st_average_return_rate > 10\n		st_dateline > 1', '2025-02-04 11:32:16');
 
 -- --------------------------------------------------------
 
@@ -108,9 +109,9 @@ CREATE TABLE `member` (
   `mem_phone` varchar(10) NOT NULL,
   `mem_status` int(1) UNSIGNED NOT NULL COMMENT '0=แอดมิน, 1=พนักงานคีย์ข้อมูล, 2=ครู, 3=เจ้าหน้าที่',
   `mem_password` varchar(50) NOT NULL,
-  `secret_code` varchar(6) NOT NULL,
-  `common_credit` int(10) UNSIGNED NOT NULL,
-  `emergency_credit` int(10) UNSIGNED NOT NULL,
+  `mem_amount_stock` int(10) UNSIGNED NOT NULL COMMENT 'จำนวนหุ้น',
+  `mem_common_credit` int(10) UNSIGNED NOT NULL,
+  `mem_emergency_credit` int(10) UNSIGNED NOT NULL,
   `mem_register_date` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -118,10 +119,11 @@ CREATE TABLE `member` (
 -- Dumping data for table `member`
 --
 
-INSERT INTO `member` (`mem_id`, `mem_name`, `mem_address`, `mem_phone`, `mem_status`, `mem_password`, `secret_code`, `common_credit`, `emergency_credit`, `mem_register_date`) VALUES
-('0000000000000', 'Admin', '410 หมู่ที่ 1 ถนนบึงพระ-พิษณุโลก ต.บึงพระ อ.เมืองพิษณุโลก จ.พิษณุโลก 65000', '0000000000', 1, '8104ba1dc0409b259f487ed07db477c38f205a30', '', 0, 0, '2023-04-29 10:06:02'),
-('1111111111111', '11', '1', '0111111111', 2, 'd3ae181da1361e80292d967ba4a6d80359a02aed', '', 80000, 10000, '2023-05-01 23:04:37'),
-('2222222222222', '22', '2', '0222222222', 3, '14ed9824a9db7758ee0b0e111ef6848be154503b', '', 0, 0, '2025-01-28 15:22:07');
+INSERT INTO `member` (`mem_id`, `mem_name`, `mem_address`, `mem_phone`, `mem_status`, `mem_password`, `mem_amount_stock`, `mem_common_credit`, `mem_emergency_credit`, `mem_register_date`) VALUES
+('0000000000000', 'Admin', '410 หมู่ที่ 1 ถนนบึงพระ-พิษณุโลก ต.บึงพระ อ.เมืองพิษณุโลก จ.พิษณุโลก 65000', '0000000000', 0, '8104ba1dc0409b259f487ed07db477c38f205a30', 0, 80000, 5000, '2023-04-29 10:06:02'),
+('1111111111111', '11', '1', '0111111111', 2, 'd3ae181da1361e80292d967ba4a6d80359a02aed', 0, 80000, 5000, '2023-05-01 23:04:37'),
+('2222222222222', '22', '2', '0222222222', 1, '14ed9824a9db7758ee0b0e111ef6848be154503b', 0, 80000, 5000, '2025-02-04 12:47:36'),
+('3333333333333', '33', '3', '0333333333', 3, 'ba12c6bf07d472fa4b5ff41ad524555afad276c6', 0, 80000, 5000, '2025-02-04 12:50:32');
 
 -- --------------------------------------------------------
 
@@ -149,7 +151,7 @@ CREATE TABLE `system` (
 --
 
 INSERT INTO `system` (`st_id`, `st_max_amount_common`, `st_max_amount_emergency`, `st_amount_cost_teacher`, `st_amount_cost_officer`, `st_max_months_common`, `st_max_months_emergency`, `st_interest`, `st_stock_price`, `st_dividend_rate`, `st_average_return_rate`, `st_dateline`) VALUES
-(1, 80000, 5000, 2000, 1000, 40, 5, 9, 200, 4.5, 10, 30);
+(1, 80000, 5000, 2000, 1000, 40, 5, 9, 200, 4.5, 10, 1);
 
 --
 -- Indexes for dumped tables
@@ -211,7 +213,7 @@ ALTER TABLE `borrow_alert`
 -- AUTO_INCREMENT for table `borrow_log`
 --
 ALTER TABLE `borrow_log`
-  MODIFY `bl_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `bl_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `borrow_request`
