@@ -1,97 +1,75 @@
 <?php 
-include('../condb.php');
- //echo "<pre>";
- //print_r($_POST);
- //echo "</pre>";
- //exit();
+// 1. เชื่อมต่อฐานข้อมูล
+include('../config/condb.php');
 
-@$system = $_POST['system'];
+// ตรวจสอบว่ามีการส่งค่ามาจริงหรือไม่
+if (isset($_POST['system']) && $_POST['system'] == "setting") {
 
-$st_max_amount_common = mysqli_real_escape_string($condb,$_POST["st_max_amount_common"]);
-$st_max_amount_emergency = mysqli_real_escape_string($condb,$_POST["st_max_amount_emergency"]);
-$st_amount_cost_teacher = mysqli_real_escape_string($condb,$_POST["st_amount_cost_teacher"]);
-$st_amount_cost_officer = mysqli_real_escape_string($condb,$_POST["st_amount_cost_officer"]);
-$st_max_months_common = mysqli_real_escape_string($condb,$_POST["st_max_months_common"]);
-$st_max_months_emergency = mysqli_real_escape_string($condb,$_POST["st_max_months_emergency"]);
-$st_interest = mysqli_real_escape_string($condb,$_POST["st_interest"]);
-$st_stock_price = mysqli_real_escape_string($condb,$_POST["st_stock_price"]);
-$st_dividend_rate = mysqli_real_escape_string($condb,$_POST["st_dividend_rate"]);
-$st_average_return_rate = mysqli_real_escape_string($condb,$_POST["st_average_return_rate"]);
-$st_dateline = mysqli_real_escape_string($condb,$_POST["st_dateline"]);
+    // 2. รับค่าจากฟอร์ม และ Escape String ป้องกัน SQL Injection
+    $st_max_amount_common    = mysqli_real_escape_string($condb, $_POST["st_max_amount_common"]);
+    $st_max_amount_emergency = mysqli_real_escape_string($condb, $_POST["st_max_amount_emergency"]);
+    $st_amount_cost_teacher  = mysqli_real_escape_string($condb, $_POST["st_amount_cost_teacher"]);
+    $st_amount_cost_officer  = mysqli_real_escape_string($condb, $_POST["st_amount_cost_officer"]);
+    $st_max_months_common    = mysqli_real_escape_string($condb, $_POST["st_max_months_common"]);
+    $st_max_months_emergency = mysqli_real_escape_string($condb, $_POST["st_max_months_emergency"]);
+    $st_interest             = mysqli_real_escape_string($condb, $_POST["st_interest"]);
+    $st_stock_price          = mysqli_real_escape_string($condb, $_POST["st_stock_price"]);
+    $st_dividend_rate        = mysqli_real_escape_string($condb, $_POST["st_dividend_rate"]);
+    $st_average_return_rate  = mysqli_real_escape_string($condb, $_POST["st_average_return_rate"]);
+    $st_dateline             = mysqli_real_escape_string($condb, $_POST["st_dateline"]);
+    
+    // รับค่าคนแก้ไข (เอาไว้ลง Log)
+    $st_edit_by = mysqli_real_escape_string($condb, $_POST["st_edit_by"]);
 
-$query = "SELECT * FROM `system` WHERE st_id = 1" or die("Error : ".mysqli_error($condb));
-$result = mysqli_query($condb, $query);
-$value = mysqli_fetch_array($result, MYSQLI_ASSOC);
+    // 3. คำสั่ง SQL Update
+    $sql = "UPDATE `system` SET
+            st_max_amount_common    = '$st_max_amount_common',
+            st_max_amount_emergency = '$st_max_amount_emergency',
+            st_amount_cost_teacher  = '$st_amount_cost_teacher',
+            st_amount_cost_officer  = '$st_amount_cost_officer',
+            st_max_months_common    = '$st_max_months_common',
+            st_max_months_emergency = '$st_max_months_emergency',
+            st_interest             = '$st_interest',
+            st_stock_price          = '$st_stock_price',
+            st_dividend_rate        = '$st_dividend_rate',
+            st_average_return_rate  = '$st_average_return_rate',
+            st_dateline             = '$st_dateline'
+            WHERE st_id = 1";
 
-if ($system == "setting"){
-	if($value['st_max_amount_common'] == $st_max_amount_common and
-	$value['st_max_amount_emergency'] == $st_max_amount_emergency and
-	$value['st_amount_cost_teacher'] == $st_amount_cost_teacher and
-	$value['st_amount_cost_officer'] == $st_amount_cost_officer and
-	$value['st_max_months_common'] == $st_max_months_common and
-	$value['st_max_months_emergency'] == $st_max_months_emergency and
-	$value['st_interest'] == $st_interest and
-	$value['st_stock_price'] == $st_stock_price and
-	$value['st_dividend_rate'] == $st_dividend_rate and
-	$value['st_average_return_rate'] == $st_average_return_rate and
-	$value['st_dateline'] == $st_dateline) { }
-	else {
-		$sql = "UPDATE `system` SET
-		st_max_amount_common = $st_max_amount_common,
-		st_max_amount_emergency = $st_max_amount_emergency,
-		st_amount_cost_teacher = $st_amount_cost_teacher,
-		st_amount_cost_officer = $st_amount_cost_officer,
-		st_max_months_common = $st_max_months_common,
-		st_max_months_emergency = $st_max_months_emergency,
-		st_interest = $st_interest,
-		st_stock_price = $st_stock_price,
-		st_dividend_rate = $st_dividend_rate,
-		st_average_return_rate = $st_average_return_rate,
-		st_dateline = $st_dateline
-		WHERE st_id = 1";
-		$result = mysqli_query($condb, $sql) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
+    $result = mysqli_query($condb, $sql) or die ("Error Update: " . mysqli_error($condb));
 
-		//log
-		$st_edit_by = mysqli_real_escape_string($condb,$_POST["st_edit_by"]);
-		$st_date = date("Y-m-d H:i:s");
-		$text = "st_max_amount_common > $st_max_amount_common
-		st_max_amount_emergency > $st_max_amount_emergency
-		st_amount_cost_teacher > $st_amount_cost_teacher
-		st_amount_cost_officer > $st_amount_cost_officer
-		st_max_months_common > $st_max_months_common
-		st_max_months_emergency > $st_max_months_emergency
-		st_interest > $st_interest
-		st_stock_price > $st_stock_price
-		st_dividend_rate > $st_dividend_rate
-		st_average_return_rate > $st_average_return_rate
-		st_dateline > $st_dateline";
+    // 4. บันทึก Log การใช้งาน (Borrow Log)
+    if($result){
+        $st_date = date("Y-m-d H:i:s");
+        // จัดรูปแบบข้อความ Log ให้อ่านง่าย
+        $log_text = "ปรับปรุงการตั้งค่าระบบ: 
+        [กู้สามัญ: $st_max_amount_common, กู้ฉุกเฉิน: $st_max_amount_emergency]
+        [ดอกเบี้ย: $st_interest%, หุ้น: $st_stock_price, ปันผล: $st_dividend_rate%, เฉลี่ยคืน: $st_average_return_rate%]
+        [ตัดรอบวันที่: $st_dateline]";
+        
+        // Escape ข้อความ Log อีกครั้งเพื่อความชัวร์
+        $log_text = mysqli_real_escape_string($condb, $log_text);
 
-		$sql1 = "INSERT INTO `borrow_log` (bl_id, mem_id, bl_text, bl_date) 
-		VALUES (NULL, '$st_edit_by', 'แก้ไขการตั้งค่าระบบ $text', '$st_date')";
-		$result1 = mysqli_query($condb, $sql1) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
+        $sql_log = "INSERT INTO `borrow_log` (mem_id, bl_text, bl_date) 
+                    VALUES ('$st_edit_by', '$log_text', '$st_date')";
+        mysqli_query($condb, $sql_log) or die ("Error Log: " . mysqli_error($condb));
+        
+        // ปิดการเชื่อมต่อ
+        mysqli_close($condb);
 
-		if($result and $result1){
-			mysqli_close($condb);
-			echo "<script type='text/javascript'>";
-			echo "window.location = 'system.php'; ";
-			echo "</script>";
-		}
-		else{
-			mysqli_close($condb);
-			echo "<script type='text/javascript'>";
-			echo "window.location = 'system_db.php'; ";
-			echo "</script>";
-		}
-	}
-	echo "<script type='text/javascript'>";
-	echo "window.location = 'system.php'; ";
-	echo "</script>";
-}
-else {
-	mysqli_close($condb);
-	echo "<script type='text/javascript'>";
-	echo "alert('ไม่สามารถแก้ไขได้'); ";
-	echo "window.location = 'system.php'; ";
-	echo "</script>";
+        // 5. ส่งกลับไปหน้าเดิม พร้อมสถานะ success (save_ok=1)
+        Header("Location: system.php?save_ok=1");
+        exit();
+
+    } else {
+        // กรณี Error
+        mysqli_close($condb);
+        echo "<script>alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); window.history.back();</script>";
+    }
+
+} else {
+    // กรณีเข้าไฟล์นี้มาโดยตรงไม่ได้กด submit
+    Header("Location: system.php");
+    exit();
 }
 ?>

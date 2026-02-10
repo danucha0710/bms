@@ -1,236 +1,225 @@
 <?php 
 $menu = "approve";
-include("header.php");
-?>
+include('../includes/header.php'); // แก้ Path ให้ถูกต้อง
 
-<?php 
-//echo "<pre>";
-//print_r($_POST);
-//echo "</pre>";
-//exit();
-$br_id = $_GET["br_id"];
-$query = "SELECT * FROM borrow_request
-INNER JOIN member ON borrow_request.mem_id = member.mem_id
-WHERE br_id = $br_id" or die("Error : ".mysqli_error($condb));
-$result = mysqli_query($condb, $query);
-$rowcount = mysqli_num_rows($result);
-if($rowcount > 0) {
-  $value = mysqli_fetch_array($result, MYSQLI_ASSOC);
+// 1. รับค่าและดึงข้อมูลคำขอ
+$br_id = mysqli_real_escape_string($condb, $_GET["br_id"]);
+$query = "SELECT borrow_request.*, member.mem_name 
+          FROM borrow_request
+          INNER JOIN member ON borrow_request.mem_id = member.mem_id
+          WHERE br_id = '$br_id'";
+$result = mysqli_query($condb, $query) or die("Error : ".mysqli_error($condb));
+$value = mysqli_fetch_array($result, MYSQLI_ASSOC);
+
+// ถ้าไม่พบข้อมูล ให้ดีดกลับ
+if(!$value){
+    echo "<script>alert('ไม่พบข้อมูลคำขอนี้'); window.location='borrow_request.php';</script>";
+    exit();
 }
 
+// 2. ดึงค่า Config ระบบ
 $sql_system = "SELECT * FROM `system` WHERE st_id = 1";
 $result_system = mysqli_query($condb, $sql_system);
 $row_system = mysqli_fetch_array($result_system, MYSQLI_ASSOC);
 
-$st_max_amount_common = $row_system['st_max_amount_common'];
-$st_max_amount_emergency = $row_system['st_max_amount_emergency'];
-$st_max_months_common = $row_system['st_max_months_common'];
-$st_max_months_emergency = $row_system['st_max_months_emergency'];
-$st_interest = $row_system['st_interest'];
-$st_dateline = $row_system['st_dateline'];
+// Helper Function แปลงประเภท
+function getTypeText($type){
+    return ($type == 1) ? "เงินกู้สามัญ" : "เงินกู้ฉุกเฉิน";
+}
+function getGuaranteeText($type){
+    if($type == 1) return "ค้ำประกันด้วยบุคคล";
+    if($type == 2) return "ค้ำประกันด้วยจำนวนหุ้น";
+    return "-";
+}
 ?>
 
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <div class="container-fluid">
-        <h1>Approve Order</h1>
-      </div><!-- /.container-fluid -->
-    </section>
-
-    <!-- Main content -->
-    <section class="content">
-      <div class="card card-gray">
-        <div class="card-header ">
-          <h3 class="card-title">พิจารณา คำขอกู้</h3>  
-        </div>
-        <br>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-8">
-              <form action="borrow_db.php" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="borrow" value="approve">
-                <input type="hidden" name="by_id" value="<?php echo $_SESSION["mem_id"]; ?>">
-                <input type="hidden" name="st_dateline" value="<?php echo $st_dateline; ?>">
-                <input type="hidden" name="mem_id" value="<?php echo $value['mem_id']; ?>">
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">ชื่อ-นามสกุล ผู้ขอกู้</label>
-                  <input type="hidden" name="br_id" value="<?php echo $value['br_id']; ?>">
-                  <div class="col-sm-8">
-                    <input type="text" class="form-control" name="mem_name" value="<?php echo $value['mem_name']; ?>" readonly>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">ประเภทเงินกู้</label>
-                  <input type="hidden" name="br_type" value="<?php echo $value['br_type']; ?>">
-                  <div class="col-sm-8">
-                    <input type="text" class="form-control" name="br_type_text" value="<?php 
-                      if($value['br_type'] == 1){
-                        echo "เงินกู้สามัญ";
-                      }
-                      elseif($value['br_type'] == 2){
-                        echo "เงินกู้ฉุกเฉิน";
-                      }
-                      ?>" readonly>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">จำนวนเงินที่ต้องการกู้</label>
-                  <div class="col-sm-8">
-                    <?php 
-                      if($value['br_type'] == 1){
-                    ?>
-                        <input type="number" class="form-control" name="br_amount" min="1" max="<?php echo $st_max_amount_common; ?>" value="<?php echo $value['br_amount']; ?>" required>
-                    <?php }
-                      elseif($value['br_type'] == 2){
-                    ?>
-                        <input type="number" class="form-control" name="br_amount" min="1" max="<?php echo $st_max_amount_emergency; ?>" value="<?php echo $value['br_amount']; ?>" required>
-                    <?php } ?>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">จำนวนเดือนที่ต้องการผ่อนชำระ</label>
-                  <div class="col-sm-8">
-                  <?php 
-                      if($value['br_type'] == 1){
-                    ?>
-                        <input type="number" class="form-control" name="br_months_pay" min="1" max="<?php echo $st_max_months_common; ?>" value="<?php echo $value['br_months_pay']; ?>" required>
-                    <?php }
-                      elseif($value['br_type'] == 2){
-                    ?>
-                        <input type="number" class="form-control" name="br_months_pay" min="1" max="<?php echo $st_max_months_emergency; ?>" value="<?php echo $value['br_months_pay']; ?>" required>
-                    <?php } ?>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">ประเภทการค้ำประกัน</label>
-                  <input type="hidden" name="guarantee_type" value="<?php echo $value['guarantee_type']; ?>">
-                  <div class="col-sm-8">
-                    <input type="text" class="form-control" name="guarantee_type_text" value="<?php include 'guarantee_type.php'; ?>" readonly>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">ชื่อผู้ค้ำประกัน 1</label>
-                  <div class="col-sm-8">
-                    <input type="text" class="form-control" name="guarantor_1" value="<?php echo $value['guarantor_1']; ?>" readonly>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">ชื่อผู้ค้ำประกัน 2</label>
-                  <div class="col-sm-8">
-                    <input type="text" class="form-control" name="guarantor_2" value="<?php echo $value['guarantor_2']; ?>" readonly>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">รายละเอียดคำขอกู้</label>
-                  <div class="col-sm-8">
-                    <textarea class="form-control" name="br_details" row="3" readonly><?php echo $value['br_details']; ?></textarea>
-                  </div>
-                </div>
-                <hr style="height:5px;border-width:0;color:red;background-color:red">
-                <?php if($value['br_status'] == 0) { ?>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">สถานะคำขอ</label>
-                  <div class="col-sm-8">
-                    <select class="form-select" name="br_status" onchange="show1(this.value)" required>
-                      <option value="">-- กรุณาเลือก --</option>
-                      <option value="1">อนุมัติ</option>
-                      <option value="2">ไม่อนุมัติ</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <input type="hidden" name="br_approve_by" value="<?php echo $_SESSION["mem_id"]; ?>">
-                  <label style="display: none" class="col-sm-4 col-form-label" id="br_interest_rate_label">อัตราดอกเบี้ย</label>
-                  <div class="col-sm-8">
-                    <input style="display: none" type="number" min="0" max="15" step="0.01" class="form-control" name="br_interest_rate" id="br_interest_rate" value="<?php echo $st_interest; ?>">
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label style="display: none" class="col-sm-4 col-form-label" id="br_respond_label">เหตุผลที่ไม่อนุมัติ</label>
-                  <div class="col-sm-8">
-                    <textarea style="display: none" class="form-control" name="br_respond" id="br_respond" row="3"></textarea>
-                  </div>
-                </div>
-                <?php } else { 
-                  if($value['br_status'] == 1) { 
-                ?>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">สถานะคำขอ</label>
-                  <div class="col-sm-8">
-                    <select class="form-select" name="br_status" disabled>
-                      <option value="1" selected>อนุมัติ</option>
-                      <option value="2">ไม่อนุมัติ</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-4 col-form-label">อัตราดอกเบี้ย</label>
-                  <input type="hidden" name="br_approve_by" value="<?php echo $_SESSION["mem_id"]; ?>">
-                  <div class="col-sm-8">
-                    <input type="number" min="0" step="0.01" class="form-control" name="br_interest_rate" value="<?php echo $value['br_interest_rate']; ?>" readonly>
-                  </div>
-                </div>
-                <?php } 
-                  elseif($value['br_status'] == 2) { 
-                ?>
-                  <div class="row mt-3">
-                    <label class="col-sm-4 col-form-label">สถานะคำขอ</label>
-                    <div class="col-sm-8">
-                      <select class="form-select" name="br_status" disabled>
-                        <option value="1">อนุมัติ</option>
-                        <option value="2" selected>ไม่อนุมัติ</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="row mt-3">
-                    <label class="col-sm-4 col-form-label">เหตุผลที่ไม่อนุมัติ</label>
-                    <input type="hidden" name="br_approve_by" value="<?php echo $_SESSION["mem_id"]; ?>">
-                    <div class="col-sm-8">
-                      <textarea class="form-control" name="br_respond" row="3" readonly><?php echo $value['br_respond']; ?></textarea>
-                    </div>
-                  </div>
-                </div>
-                <?php } } ?>
-                <div class="row mt-3">
-                  <?php 
-                    if($value['br_status'] == 0) {
-                  ?>
-                  <button type="submit" class="btn btn-danger btn-block">ยืนยัน</button>
-                  <?php } ?>
-                </div>
-              </form>   
-            </div> 
+<section class="content mt-4">
+  <div class="container-fluid">
+    <div class="row justify-content-center">
+      <div class="col-md-10">
+        
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+            <h4 class="card-title m-0">
+                <i class="fas fa-clipboard-check"></i> พิจารณาคำขอกู้ (ID: <?php echo $value['br_id']; ?>)
+            </h4>
+            <a href="borrow_request.php" class="btn btn-light btn-sm"><i class="fas fa-arrow-left"></i> ย้อนกลับ</a>
           </div>
-        </div>   
-      </div>
-    </section>
-    <!-- /.content -->
+          
+          <div class="card-body">
+            <form action="borrow_db.php" method="POST">
+              <input type="hidden" name="borrow" value="approve">
+              <input type="hidden" name="by_id" value="<?php echo $_SESSION["mem_id"]; ?>">
+              <input type="hidden" name="st_dateline" value="<?php echo $row_system['st_dateline']; ?>">
+              <input type="hidden" name="mem_id" value="<?php echo $value['mem_id']; ?>">
+              <input type="hidden" name="br_id" value="<?php echo $value['br_id']; ?>">
+              <input type="hidden" name="br_type" value="<?php echo $value['br_type']; ?>">
+              <input type="hidden" name="guarantee_type" value="<?php echo $value['guarantee_type']; ?>">
 
-<?php 
-  mysqli_close($condb);
-  include('footer2.php'); 
-?>
+              <h6 class="text-primary border-bottom pb-2 mb-3">ข้อมูลผู้ขอกู้</h6>
+              <div class="row mb-3">
+                <label class="col-sm-3 col-form-label fw-bold">ชื่อ-นามสกุล</label>
+                <div class="col-sm-9">
+                  <input type="text" class="form-control-plaintext" value="<?php echo $value['mem_name']; ?>" readonly>
+                </div>
+              </div>
+              <div class="row mb-3">
+                <label class="col-sm-3 col-form-label fw-bold">ประเภทเงินกู้</label>
+                <div class="col-sm-9">
+                   <span class="badge <?php echo ($value['br_type']==1)?'bg-primary':'bg-danger'; ?> fs-6">
+                       <?php echo getTypeText($value['br_type']); ?>
+                   </span>
+                </div>
+              </div>
+              
+              <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">จำนวนเงินที่ขอกู้</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" name="br_amount" 
+                            min="1" 
+                            max="<?php echo ($value['br_type']==1) ? $row_system['st_max_amount_common'] : $row_system['st_max_amount_emergency']; ?>" 
+                            value="<?php echo $value['br_amount']; ?>" 
+                            <?php echo ($value['br_status']!=0)?'readonly':'required'; ?>>
+                        <span class="input-group-text">บาท</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">ระยะเวลาผ่อนชำระ</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" name="br_months_pay" 
+                            min="1" 
+                            max="<?php echo ($value['br_type']==1) ? $row_system['st_max_months_common'] : $row_system['st_max_months_emergency']; ?>" 
+                            value="<?php echo $value['br_months_pay']; ?>" 
+                            <?php echo ($value['br_status']!=0)?'readonly':'required'; ?>>
+                        <span class="input-group-text">เดือน</span>
+                    </div>
+                </div>
+              </div>
+
+              <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">ข้อมูลหลักประกัน</h6>
+              <div class="row mb-3">
+                <label class="col-sm-3 col-form-label fw-bold">รูปแบบการค้ำประกัน</label>
+                <div class="col-sm-9">
+                  <input type="text" class="form-control-plaintext" value="<?php echo getGuaranteeText($value['guarantee_type']); ?>" readonly>
+                </div>
+              </div>
+
+              <?php if($value['guarantee_type'] == 1){ ?>
+              <div class="row mb-3">
+                <label class="col-sm-3 col-form-label fw-bold">ผู้ค้ำประกัน</label>
+                <div class="col-sm-9">
+                  <ul class="list-group">
+                    <li class="list-group-item">1. <?php echo $value['guarantor_1']; ?></li>
+                    <li class="list-group-item">2. <?php echo $value['guarantor_2']; ?></li>
+                  </ul>
+                </div>
+              </div>
+              <?php } ?>
+
+              <div class="row mb-3">
+                <label class="col-sm-3 col-form-label fw-bold">เหตุผลการกู้</label>
+                <div class="col-sm-9">
+                  <textarea class="form-control bg-light" rows="3" readonly><?php echo $value['br_details']; ?></textarea>
+                </div>
+              </div>
+
+              <?php if($value['br_status'] == 0) { ?>
+                  <div class="alert alert-warning mt-4">
+                    <h5 class="alert-heading"><i class="fas fa-gavel"></i> ส่วนการพิจารณาอนุมัติ</h5>
+                    <hr>
+                    
+                    <div class="row mb-3">
+                        <label class="col-sm-3 col-form-label fw-bold">ผลการพิจารณา</label>
+                        <div class="col-sm-9">
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="br_status" id="status_approve" value="1" onchange="toggleReason(1)" required>
+                                <label class="btn btn-outline-success" for="status_approve">
+                                    <i class="fas fa-check-circle"></i> อนุมัติ
+                                </label>
+
+                                <input type="radio" class="btn-check" name="br_status" id="status_reject" value="2" onchange="toggleReason(2)">
+                                <label class="btn btn-outline-danger" for="status_reject">
+                                    <i class="fas fa-times-circle"></i> ไม่อนุมัติ
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="approve_options" style="display:none;">
+                        <div class="row mb-3">
+                            <label class="col-sm-3 col-form-label fw-bold">อัตราดอกเบี้ย</label>
+                            <div class="col-sm-4">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="br_interest_rate" id="interest_rate" value="<?php echo $row_system['st_interest']; ?>" step="0.01" min="0">
+                                    <span class="input-group-text">% ต่อปี</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="reject_options" style="display:none;">
+                        <div class="row mb-3">
+                            <label class="col-sm-3 col-form-label fw-bold text-danger">เหตุผลที่ไม่อนุมัติ</label>
+                            <div class="col-sm-9">
+                                <textarea class="form-control" name="br_respond" id="reject_reason" rows="2" placeholder="ระบุเหตุผล..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-success px-5" onclick="return confirm('ยืนยันผลการพิจารณา?');">
+                            <i class="fas fa-save"></i> บันทึกผลการพิจารณา
+                        </button>
+                    </div>
+                  </div>
+
+              <?php } else { ?>
+                  <div class="alert <?php echo ($value['br_status']==1)?'alert-success':'alert-danger'; ?> mt-4">
+                    <h5 class="alert-heading">
+                        <i class="fas <?php echo ($value['br_status']==1)?'fa-check-circle':'fa-times-circle'; ?>"></i> 
+                        ผลการพิจารณา: <?php echo ($value['br_status']==1)?'อนุมัติ':'ไม่อนุมัติ'; ?>
+                    </h5>
+                    <hr>
+                    <?php if($value['br_status'] == 1){ ?>
+                        <p class="mb-0"><strong>อัตราดอกเบี้ย:</strong> <?php echo $value['br_interest_rate']; ?>% ต่อปี</p>
+                    <?php } else { ?>
+                        <p class="mb-0"><strong>เหตุผล:</strong> <?php echo $value['br_respond']; ?></p>
+                    <?php } ?>
+                  </div>
+              <?php } ?>
+
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<?php include('../includes/footer.php'); ?>
 
 <script>
-  function show1(text) {
-    if(text == 1) {
-      document.getElementById("br_interest_rate_label").style.display = "inline";
-      document.getElementById("br_interest_rate").style.display = "inline";
-      document.getElementById("br_interest_rate").required = true; 
-      document.getElementById("br_respond_label").style.display = "none";
-      document.getElementById("br_respond").style.display = "none";
-      document.getElementById("br_respond").required = false; 
-    }
-    else if(text == 2) {
-      document.getElementById("br_interest_rate_label").style.display = "none";
-      document.getElementById("br_interest_rate").style.display = "none";
-      document.getElementById("br_interest_rate").required = false; 
-      document.getElementById("br_respond_label").style.display = "inline";
-      document.getElementById("br_respond").style.display = "inline";
-      document.getElementById("br_respond").required = true; 
-    }
-  }
-</script>
+function toggleReason(status) {
+    const approveDiv = document.getElementById('approve_options');
+    const rejectDiv = document.getElementById('reject_options');
+    const interestInput = document.getElementById('interest_rate');
+    const reasonInput = document.getElementById('reject_reason');
 
-</body>
-</html>
+    if (status == 1) { // อนุมัติ
+        approveDiv.style.display = 'block';
+        rejectDiv.style.display = 'none';
+        
+        interestInput.required = true;
+        reasonInput.required = false;
+        reasonInput.value = ''; // ล้างค่าเหตุผล
+    } else { // ไม่อนุมัติ
+        approveDiv.style.display = 'none';
+        rejectDiv.style.display = 'block';
+        
+        interestInput.required = false;
+        reasonInput.required = true;
+    }
+}
+</script>

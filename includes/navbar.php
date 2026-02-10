@@ -1,19 +1,32 @@
-  <nav class="main-header  navbar navbar-expand navbar-gray navbar-dark">
-    <ul class="navbar-nav">
-      <li class="nav-item">
-        <a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link <?php if ($menu == "index"){echo "active";} ?>"  href="index.php"><i class="fas fa-home"></i> Home</a>
-      </li>
-    </ul>
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm border-bottom">
+  <div class="container-fluid">
 
-    <!-- Right navbar links -->
-    <ul class="navbar-nav ml-auto">
+    <button type="button" id="sidebarCollapse" class="btn btn-light border text-secondary me-3">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
       <li class="nav-item">
-        <a href="../logout.php" class="nav-link">
-          <i class="fa fa-power-off"></i> Logout
+        <a class="nav-link <?php if ($menu == "index"){ echo "active fw-bold text-primary"; } ?>" href="index.php">
+          <i class="fas fa-home"></i> หน้าแรก
+        </a>
+      </li>
+      </ul>
+
+    <ul class="navbar-nav ms-auto">
+      
+      <li class="nav-item d-none d-sm-inline-block">
+        <span class="nav-link text-secondary">
+            สวัสดี, <?php echo $_SESSION['mem_name']; ?>
+        </span>
+      </li>
+
+      <li class="nav-item">
+        <a href="../logout.php" class="nav-link text-danger" onclick="return confirm('ยืนยันการออกจากระบบ?');">
+          <i class="fas fa-power-off"></i> ออกจากระบบ
         </a>
       </li>
     </ul>
-  </nav>
+
+  </div>
+</nav>

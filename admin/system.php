@@ -1,147 +1,151 @@
 <?php 
 $menu = "system";
-include("header.php");
-?>
+include('../includes/header.php'); // แก้ Path ให้ถูกต้อง
 
-<?php 
-$query = "SELECT * FROM `system` WHERE st_id = 1" or die("Error : ".mysqli_error($condb));
-$result = mysqli_query($condb, $query);
+// ดึงข้อมูลการตั้งค่าปัจจุบัน
+$query = "SELECT * FROM `system` WHERE st_id = 1";
+$result = mysqli_query($condb, $query) or die("Error : ".mysqli_error($condb));
 $value = mysqli_fetch_array($result, MYSQLI_ASSOC);
 ?>
 
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <div class="container-fluid">
-        <h1>System Setting</h1>
-      </div><!-- /.container-fluid -->
-    </section>
-
-    <!-- Main content -->
     <section class="content">
-      <div class="card card-gray">
-        <div class="card-header ">
-          <h3 class="card-title">ตั้งค่าระบบ</h3>  
+      <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-md-12">
+                
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-secondary text-white">
+                        <h4 class="card-title m-0"><i class="fas fa-cogs"></i> ตั้งค่าระบบ</h4>  
+                    </div>
+                    
+                    <div class="card-body">
+                        <form action="system_db.php" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="system" value="setting">
+                            <input type="hidden" name="st_edit_by" value="<?php echo $_SESSION["mem_id"]; ?>">
+                            
+                            <h6 class="text-primary border-bottom pb-2 mb-3">1. กำหนดวงเงินกู้สูงสุด</h6>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินกู้สามัญ</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_max_amount_common" value="<?php echo $value['st_max_amount_common']; ?>" required>
+                                        <span class="input-group-text">บาท</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินกู้ฉุกเฉิน</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_max_amount_emergency" value="<?php echo $value['st_max_amount_emergency']; ?>" required>
+                                        <span class="input-group-text">บาท</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">2. ค่าธรรมเนียมแรกเข้า/เงินต้น</h6>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">สำหรับครู</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_amount_cost_teacher" value="<?php echo $value['st_amount_cost_teacher']; ?>" required>
+                                        <span class="input-group-text">บาท</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">สำหรับเจ้าหน้าที่</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_amount_cost_officer" value="<?php echo $value['st_amount_cost_officer']; ?>" required>
+                                        <span class="input-group-text">บาท</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">3. ระยะเวลาผ่อนชำระสูงสุด</h6>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินกู้สามัญ</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_max_months_common" value="<?php echo $value['st_max_months_common']; ?>" required>
+                                        <span class="input-group-text">งวด (เดือน)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินกู้ฉุกเฉิน</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_max_months_emergency" value="<?php echo $value['st_max_months_emergency']; ?>" required>
+                                        <span class="input-group-text">งวด (เดือน)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">4. อัตราดอกเบี้ยและหุ้น</h6>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">อัตราดอกเบี้ยต่อปี</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" max="100" step="0.01" name="st_interest" value="<?php echo $value['st_interest']; ?>" required>
+                                        <span class="input-group-text bg-warning text-dark">% ต่อปี</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">ราคาหุ้น</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="0.01" name="st_stock_price" value="<?php echo $value['st_stock_price']; ?>" required>
+                                        <span class="input-group-text">บาท/หุ้น</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินปันผล</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" max="100" step="0.01" name="st_dividend_rate" value="<?php echo $value['st_dividend_rate']; ?>" required>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินเฉลี่ยคืน</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" max="100" step="0.01" name="st_average_return_rate" value="<?php echo $value['st_average_return_rate']; ?>" required>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">5. การตั้งค่าอื่นๆ</h6>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">ตัดรอบชำระเงินทุกวันที่</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="1" max="31" step="1" name="st_dateline" value="<?php echo $value['st_dateline']; ?>" required>
+                                        <span class="input-group-text">ของเดือน</span>
+                                    </div>
+                                    <small class="text-muted">* หากระบุ 31 ระบบจะปัดเป็นวันสุดท้ายของเดือนนั้นๆ</small>
+                                </div>
+                            </div>
+
+                            <div class="row mt-4">
+                                <div class="col-12 text-center">
+                                    <button type="submit" class="btn btn-success px-5" onclick="return confirm('ยืนยันการบันทึกการตั้งค่า?');">
+                                        <i class="fas fa-save"></i> บันทึกการตั้งค่า
+                                    </button>
+                                </div>
+                            </div>
+                        </form>   
+                    </div> 
+                </div>
+
+            </div>   
         </div>
-        <br>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-8">
-              <form action="system_db.php" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="system" value="setting">
-                <input type="hidden" name="st_edit_by" value="<?php echo $_SESSION["mem_id"]; ?>">
-                <div class="row">
-                  <label class="col-sm-5 col-form-label">วงเงินกู้สูงสุด (เงินกู้สามัญ)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" step="1" name="st_max_amount_common" value="<?php echo $value['st_max_amount_common']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">วงเงินกู้สูงสุด (เงินกู้ฉุกเฉิน)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" step="1" name="st_max_amount_emergency" value="<?php echo $value['st_max_amount_emergency']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">จำนวนเงินต้น (ครู)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" step="1" name="st_amount_cost_teacher" value="<?php echo $value['st_amount_cost_teacher']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">จำนวนเงินต้น (เจ้าหน้าที่)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" step="1" name="st_amount_cost_officer" value="<?php echo $value['st_amount_cost_officer']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">จำนวนเดือนที่ผ่อนชำระสูงสุด (เงินกู้สามัญ)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" step="1" name="st_max_months_common" value="<?php echo $value['st_max_months_common']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">จำนวนเดือนที่ผ่อนชำระสูงสุด (เงินกู้ฉุกเฉิน)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" step="1" name="st_max_months_emergency" value="<?php echo $value['st_max_months_emergency']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">อัตราดอกเบี้ยต่อปี</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" max="100" step="0.01" name="st_interest" value="<?php echo $value['st_interest']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">ราคาหุ้น (บาท)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" step="1" name="st_stock_price" value="<?php echo $value['st_stock_price']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">เงินปันผล (%)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" max="100" step="0.01" name="st_dividend_rate" value="<?php echo $value['st_dividend_rate']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">เงินเฉลี่ยคืน (%)</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" max="100" step="0.01" name="st_average_return_rate" value="<?php echo $value['st_average_return_rate']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <label class="col-sm-5 col-form-label">วันที่สิ้นสุดชำระเงินรายเดือน</label>
-                  <div class="col-sm-7">
-                    <input type="number" class="form-control" main="0" max="31" step="1" name="st_dateline" value="<?php echo $value['st_dateline']; ?>" required>
-                  </div>
-                </div>
-                <div class="row mt-3">
-                  <button type="submit" class="btn btn-info btn-block">ตั้งค่า</button>
-                </div>
-              </form>   
-            </div> 
-          </div>
-        </div>   
       </div>
     </section>
-    <!-- /.content -->
-
-<?php 
-  mysqli_close($condb);
-  include('footer2.php'); 
-?>
-
-<script>
-  function show1(text) {
-    if(text == 1) {
-      document.getElementById("br_interest_rate_label").style.display = "inline";
-      document.getElementById("br_interest_rate").style.display = "inline";
-      document.getElementById("br_interest_rate").required = true; 
-      document.getElementById("br_respond_label").style.display = "none";
-      document.getElementById("br_respond").style.display = "none";
-      document.getElementById("br_respond").required = false; 
-    }
-    else if(text == 2) {
-      document.getElementById("br_interest_rate_label").style.display = "none";
-      document.getElementById("br_interest_rate").style.display = "none";
-      document.getElementById("br_interest_rate").required = false; 
-      document.getElementById("br_respond_label").style.display = "inline";
-      document.getElementById("br_respond").style.display = "inline";
-      document.getElementById("br_respond").required = true; 
-    }
-  }
-</script>
-
-<script>
-$(document).ready(function(){
-  $("#hide").click(function(){
-    $("p").hide();
-  });
-  $("#show").click(function(){
-    $("p").show();
-  });
-});
-</script>
-
-</body>
-</html>
+    <?php include('../includes/footer.php'); ?>
