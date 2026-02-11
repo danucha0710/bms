@@ -2,7 +2,7 @@
 $menu = "member";
 include('../includes/header.php');
 
-$query_member = "SELECT * FROM member ORDER BY mem_id DESC";
+$query_member = "SELECT * FROM member ORDER BY mem_register_date DESC";
 $rs_member = mysqli_query($condb, $query_member) or die("Error : ".mysqli_error($condb));
 
 function getStatusName($status_id) {
@@ -16,7 +16,7 @@ function getStatusName($status_id) {
     }
 }
 ?>
-    <section class="content">
+    <section class="content mt-4">
       <div class="container-fluid">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
@@ -31,15 +31,16 @@ function getStatusName($status_id) {
             <div class="card-body">
                 <div class="table-responsive">
                     <table id="tableSearch" class="table table-bordered table-hover table-striped align-middle">
-                        <thead class="table-light">
+                        <thead class="table-light text-center">
                             <tr>
-                                <th width="5%" class="text-center">ลำดับ</th>
+                                <th width="5%">ลำดับ</th>
+                                <th width="15%">Username</th>
                                 <th width="20%">ชื่อ-นามสกุล</th>
-                                <th width="10%" class="text-center">เบอร์โทร</th>
-                                <th width="10%" class="text-center">สถานะ</th>
-                                <th width="15%" class="text-end">วงเงินกู้สามัญ</th>
-                                <th width="15%" class="text-end">วงเงินกู้ฉุกเฉิน</th>
-                                <th width="10%" class="text-center">จัดการ</th>
+                                <th width="10%">เบอร์โทร</th>
+                                <th width="10%">สถานะ</th>
+                                <th width="12%">วงเงินสามัญ</th>
+                                <th width="12%">วงเงินฉุกเฉิน</th>
+                                <th width="10%">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -49,6 +50,7 @@ function getStatusName($status_id) {
                         ?>
                             <tr>
                                 <td class="text-center"><?php echo $i++; ?></td>
+                                <td class="text-primary fw-bold"><?php echo htmlspecialchars($row['mem_username']); ?></td>
                                 <td><?php echo htmlspecialchars($row['mem_name']); ?></td>
                                 <td class="text-center"><?php echo $row['mem_phone']; ?></td>
                                 <td class="text-center">
@@ -103,6 +105,12 @@ function getStatusName($status_id) {
                 </div>
               </div>
               <div class="row mb-3">
+                <label class="col-sm-3 col-form-label">ชื่อผู้ใช้งาน (Username)</label>
+                <div class="col-sm-9">
+                  <input type="text" class="form-control" name="mem_username" required placeholder="ใช้สำหรับ Login">
+                </div>
+              </div>
+              <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">ชื่อ-นามสกุล</label>
                 <div class="col-sm-9">
                   <input type="text" class="form-control" name="mem_name" required placeholder="นาย/นาง/นางสาว...">
@@ -111,13 +119,13 @@ function getStatusName($status_id) {
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">เลขบัตรประชาชน</label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" name="mem_id" pattern="[0-9]{13}" maxlength="13" required placeholder="เลข 13 หลัก (ใช้เป็น Username)">
+                  <input type="text" class="form-control" name="mem_id" pattern="[0-9]{13}" maxlength="13" required placeholder="เลข 13 หลัก">
                 </div>
               </div>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">รหัสผ่านเริ่มต้น</label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" name="mem_password" required placeholder="กำหนดรหัสผ่าน">
+                  <input type="password" class="form-control" name="mem_password" required placeholder="กำหนดรหัสผ่าน">
                 </div>
               </div>
               <div class="row mb-3">
@@ -174,6 +182,12 @@ function getStatusName($status_id) {
                 </div>
               </div>
               <div class="row mb-3">
+                <label class="col-sm-3 col-form-label">Username</label>
+                <div class="col-sm-9">
+                  <input type="text" class="form-control" name="mem_username" value="<?php echo $row['mem_username']; ?>" required>
+                </div>
+              </div>
+              <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">ชื่อ-นามสกุล</label>
                 <div class="col-sm-9">
                   <input type="text" class="form-control" name="mem_name" value="<?php echo $row['mem_name']; ?>" required>
@@ -183,13 +197,13 @@ function getStatusName($status_id) {
                 <label class="col-sm-3 col-form-label">เลขบัตรประชาชน</label>
                 <div class="col-sm-9">
                     <input type="text" class="form-control bg-light" name="mem_id" value="<?php echo $row['mem_id']; ?>" readonly>
+                    <small class="text-muted">* เลขบัตรประชาชนไม่สามารถแก้ไขได้</small>
                 </div>
               </div>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">รหัสผ่านใหม่</label>
                 <div class="col-sm-9">
-                    <input type="hidden" name="mem_password" value="<?php echo $row['mem_password']; ?>">
-                    <input type="text" class="form-control" name="mem_password_new" placeholder="กรอกเฉพาะเมื่อต้องการเปลี่ยนรหัสผ่าน">
+                    <input type="password" class="form-control" name="mem_password_new" placeholder="เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน">
                 </div>
               </div>
               <div class="row mb-3">
@@ -206,17 +220,18 @@ function getStatusName($status_id) {
               </div>
               
               <hr>
-              <h6 class="text-primary">ตั้งค่าวงเงินกู้ (เฉพาะผู้ดูแลระบบ)</h6>
+              <h6 class="text-primary fw-bold">ตั้งค่าวงเงินกู้ส่วนบุคคล</h6>
               <div class="row mb-3">
                  <div class="col-md-6">
-                    <label class="form-label">วงเงินกู้สามัญ</label>
+                    <label class="form-label small">วงเงินกู้สามัญ (บาท)</label>
                     <input type="number" class="form-control" name="common_credit" value="<?php echo $row['mem_common_credit']; ?>">
                  </div>
                  <div class="col-md-6">
-                    <label class="form-label">วงเงินกู้ฉุกเฉิน</label>
+                    <label class="form-label small">วงเงินกู้ฉุกเฉิน (บาท)</label>
                     <input type="number" class="form-control" name="emergency_credit" value="<?php echo $row['mem_emergency_credit']; ?>">
                  </div>
               </div>
+
             </div>
             
             <div class="modal-footer">

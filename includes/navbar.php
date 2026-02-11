@@ -17,7 +17,7 @@
       
       <li class="nav-item d-none d-sm-inline-block">
         <span class="nav-link text-secondary">
-            สวัสดี, <?php echo $_SESSION['mem_name']; ?>
+            ยินดีต้อนรับ: <?php echo $_SESSION['mem_name']; ?>
         </span>
       </li>
 
