@@ -1,4 +1,12 @@
 <?php 
+session_start();
+
+// ตรวจสอบสิทธิ์ Admin
+if (!isset($_SESSION['mem_id']) || $_SESSION['mem_status'] != '0') {
+    header("Location: ../login.php");
+    exit();
+}
+
 $menu = "system";
 include('../includes/header.php'); // แก้ Path ให้ถูกต้อง
 
@@ -21,14 +29,23 @@ $value = mysqli_fetch_array($result, MYSQLI_ASSOC);
                     <div class="card-body">
                         <form action="system_db.php" method="POST" enctype="multipart/form-data">
                             <input type="hidden" name="system" value="setting">
-                            <input type="hidden" name="st_edit_by" value="<?php echo $_SESSION["mem_id"]; ?>">
+                            <input type="hidden" name="st_edit_by" value="<?php echo htmlspecialchars($_SESSION["mem_id"]); ?>">
                             
                             <h6 class="text-primary border-bottom pb-2 mb-3">1. กำหนดวงเงินกู้สูงสุด</h6>
                             <div class="row mb-3">
-                                <label class="col-sm-4 col-form-label">เงินกู้สามัญ</label>
+                                <label class="col-sm-4 col-form-label">เงินกู้สามัญ (ครู)</label>
                                 <div class="col-sm-4">
                                     <div class="input-group">
-                                        <input type="number" class="form-control" min="0" step="1" name="st_max_amount_common" value="<?php echo $value['st_max_amount_common']; ?>" required>
+                                        <input type="number" class="form-control" min="0" step="1" name="st_max_amount_common_teacher" value="<?php echo isset($value['st_max_amount_common_teacher']) ? $value['st_max_amount_common_teacher'] : ''; ?>" required>
+                                        <span class="input-group-text">บาท</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินกู้สามัญ (เจ้าหน้าที่)</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_max_amount_common_officer" value="<?php echo isset($value['st_max_amount_common_officer']) ? $value['st_max_amount_common_officer'] : ''; ?>" required>
                                         <span class="input-group-text">บาท</span>
                                     </div>
                                 </div>
@@ -43,7 +60,7 @@ $value = mysqli_fetch_array($result, MYSQLI_ASSOC);
                                 </div>
                             </div>
 
-                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">2. ค่าธรรมเนียมแรกเข้า/เงินต้น</h6>
+                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">2. จำนวนเงินต้น</h6>
                             <div class="row mb-3">
                                 <label class="col-sm-4 col-form-label">สำหรับครู</label>
                                 <div class="col-sm-4">

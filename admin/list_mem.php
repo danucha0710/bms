@@ -1,4 +1,12 @@
 <?php 
+session_start();
+
+// ตรวจสอบสิทธิ์ Admin
+if (!isset($_SESSION['mem_id']) || $_SESSION['mem_status'] != '0') {
+    header("Location: ../login.php");
+    exit();
+}
+
 $menu = "member";
 include('../includes/header.php');
 
@@ -31,16 +39,16 @@ function getStatusName($status_id) {
             <div class="card-body">
                 <div class="table-responsive">
                     <table id="tableSearch" class="table table-bordered table-hover table-striped align-middle">
-                        <thead class="table-light text-center">
+                        <thead class="table-light">
                             <tr>
-                                <th width="5%">ลำดับ</th>
-                                <th width="15%">Username</th>
-                                <th width="20%">ชื่อ-นามสกุล</th>
-                                <th width="10%">เบอร์โทร</th>
-                                <th width="10%">สถานะ</th>
-                                <th width="12%">วงเงินสามัญ</th>
-                                <th width="12%">วงเงินฉุกเฉิน</th>
-                                <th width="10%">จัดการ</th>
+                                <th width="5%" class="text-center">ลำดับ</th>
+                                <th width="15%" class="text-center">Username</th>
+                                <th width="20%" class="text-center">ชื่อ-นามสกุล</th>
+                                <th width="10%" class="text-center">เบอร์โทร</th>
+                                <th width="10%" class="text-center">สถานะ</th>
+                                <th width="12%" class="text-center">วงเงินสามัญ</th>
+                                <th width="12%" class="text-center">วงเงินฉุกเฉิน</th>
+                                <th width="10%" class="text-center">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -52,8 +60,8 @@ function getStatusName($status_id) {
                                 <td class="text-center"><?php echo $i++; ?></td>
                                 <td class="text-primary fw-bold"><?php echo htmlspecialchars($row['mem_username']); ?></td>
                                 <td><?php echo htmlspecialchars($row['mem_name']); ?></td>
-                                <td class="text-center"><?php echo $row['mem_phone']; ?></td>
-                                <td class="text-center">
+                                <td class="text-start"><?php echo htmlspecialchars($row['mem_phone']); ?></td>
+                                <td class="text-start">
                                     <?php echo getStatusName($row['mem_status']); ?>
                                 </td>
                                 <td class="text-end"><?php echo number_format($row['mem_common_credit']); ?></td>
@@ -63,7 +71,7 @@ function getStatusName($status_id) {
                                         <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editModal<?php echo $row['mem_id'];?>">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <a href="member_db.php?mem_id=<?php echo $row['mem_id']; ?>&member=del" class="btn btn-danger btn-sm" onclick="return confirm('ต้องการลบข้อมูล <?php echo $row['mem_name']; ?> ใช่หรือไม่?');">
+                                        <a href="member_db.php?mem_id=<?php echo htmlspecialchars($row['mem_id'], ENT_QUOTES); ?>&member=del" class="btn btn-danger btn-sm" onclick="return confirm('ต้องการลบข้อมูล <?php echo htmlspecialchars($row['mem_name'], ENT_QUOTES); ?> ใช่หรือไม่?');">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                     </div>
@@ -160,10 +168,10 @@ function getStatusName($status_id) {
         <div class="modal-content">
           <form action="member_db.php" method="POST">
             <input type="hidden" name="member" value="edit">
-            <input type="hidden" name="mem_id_old" value="<?php echo $row['mem_id']; ?>">
+            <input type="hidden" name="mem_id_old" value="<?php echo htmlspecialchars($row['mem_id']); ?>">
             
             <div class="modal-header bg-warning">
-              <h5 class="modal-title"><i class="fas fa-edit"></i> แก้ไขข้อมูล: <?php echo $row['mem_name']; ?></h5>
+              <h5 class="modal-title"><i class="fas fa-edit"></i> แก้ไขข้อมูล: <?php echo htmlspecialchars($row['mem_name']); ?></h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
@@ -184,19 +192,19 @@ function getStatusName($status_id) {
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">Username</label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" name="mem_username" value="<?php echo $row['mem_username']; ?>" required>
+                  <input type="text" class="form-control" name="mem_username" value="<?php echo htmlspecialchars($row['mem_username']); ?>" required>
                 </div>
               </div>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">ชื่อ-นามสกุล</label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control" name="mem_name" value="<?php echo $row['mem_name']; ?>" required>
+                  <input type="text" class="form-control" name="mem_name" value="<?php echo htmlspecialchars($row['mem_name']); ?>" required>
                 </div>
               </div>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">เลขบัตรประชาชน</label>
                 <div class="col-sm-9">
-                    <input type="text" class="form-control bg-light" name="mem_id" value="<?php echo $row['mem_id']; ?>" readonly>
+                    <input type="text" class="form-control bg-light" name="mem_id" value="<?php echo htmlspecialchars($row['mem_id']); ?>" readonly>
                     <small class="text-muted">* เลขบัตรประชาชนไม่สามารถแก้ไขได้</small>
                 </div>
               </div>
@@ -209,13 +217,13 @@ function getStatusName($status_id) {
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">เบอร์โทรศัพท์</label>
                 <div class="col-sm-9">
-                  <input type="tel" name="mem_phone" class="form-control" value="<?php echo $row['mem_phone']; ?>" required>
+                  <input type="tel" name="mem_phone" class="form-control" value="<?php echo htmlspecialchars($row['mem_phone']); ?>" required>
                 </div>
               </div>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">ที่อยู่</label>
                 <div class="col-sm-9">
-                  <textarea class="form-control" name="mem_address" rows="2"><?php echo $row['mem_address']; ?></textarea>
+                  <textarea class="form-control" name="mem_address" rows="2"><?php echo htmlspecialchars($row['mem_address']); ?></textarea>
                 </div>
               </div>
               

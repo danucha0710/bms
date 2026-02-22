@@ -1,4 +1,12 @@
 <?php 
+session_start();
+
+// ตรวจสอบสิทธิ์ Admin
+if (!isset($_SESSION['mem_id']) || $_SESSION['mem_status'] != '0') {
+    header("Location: ../login.php");
+    exit();
+}
+
 $menu = "mustpay";
 include('../includes/header.php'); // แก้ Path
 
@@ -22,7 +30,7 @@ if (!empty($_POST['date_s']) && !empty($_POST['date_e'])) {
 }
 
 // =========================================================
-// 2. ดึงข้อมูล
+// 2. ดึงข้อมูล (bw_amount = เงินที่ต้องจ่ายแต่ละงวด คำนวณตอนอนุมัติใน borrow_db.php)
 // =========================================================
 $query = "SELECT borrowing.*, member.mem_name, borrow_request.br_type 
           FROM borrowing
@@ -80,13 +88,13 @@ $row_system = mysqli_fetch_array($result_system, MYSQLI_ASSOC);
                                     $borrowType = ($value['br_type'] == 1) ? '<span class="badge bg-primary">สามัญ</span>' : '<span class="badge bg-danger">ฉุกเฉิน</span>';
                             ?>
                                 <tr>
-                                    <td><?php echo $value['mem_name']; ?></td>
+                                    <td><?php echo htmlspecialchars($value['mem_name']); ?></td>
                                     <td class="text-center"><?php echo $borrowType; ?></td>
                                     <td class="text-center"><?php echo $value['bw_round']; ?></td>
                                     <td class="text-end fw-bold text-danger"><?php echo number_format($value['bw_amount']); ?></td>
                                     <td class="text-center"><?php echo date('d/m/Y', strtotime($value['bw_date_pay'])); ?></td>
                                     <td class="text-center">
-                                        <a href="payment.php?br_id=<?php echo $value['br_id']; ?>&bw_id=<?php echo $value['bw_id']; ?>" class="btn btn-success btn-sm">
+                                        <a href="payment.php?br_id=<?php echo htmlspecialchars($value['br_id']); ?>&bw_id=<?php echo htmlspecialchars($value['bw_id']); ?>" class="btn btn-success btn-sm">
                                             <i class="fas fa-money-bill-wave"></i> แจ้งชำระ
                                         </a>
                                     </td>

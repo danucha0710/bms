@@ -20,28 +20,17 @@ if (isset($_GET['mem_id'])) {
 
     if ($row_member) {
         // คำนวณมูลค่าหุ้น (จำนวนหุ้น * ราคาต่อหุ้น)
-        $stock_count = $row_member['mem_amount_stock'];
+        $stock_count = (int) $row_member['mem_amount_stock'];
         $stock_value = $stock_count * $stock_price;
+        $common_credit = (int) $row_member['mem_common_credit'];
+        $emergency_credit = (int) $row_member['mem_emergency_credit'];
 
-        echo "<tr>";
-        echo "<td>" . htmlspecialchars($row_member['mem_name']) . "</td>";
-        echo "<td class='text-center'>" . $row_member['mem_phone'] . "</td>";
-        
-        // แสดงมูลค่าหุ้น (บาท) และจำนวนหน่วยในวงเล็บ
-        echo "<td class='text-end'>
-                <span class='fw-bold text-success'>" . number_format($stock_value, 2) . "</span> 
-                <small class='text-muted'>(" . number_format($stock_count) . " หุ้น)</small>
-              </td>";
-        
-        // แสดงวงเงินกู้สามัญ
-        echo "<td class='text-end text-primary'>" . number_format($row_member['mem_common_credit']) . "</td>";
-        
-        // แสดงวงเงินกู้ฉุกเฉิน
-        echo "<td class='text-end text-danger'>" . number_format($row_member['mem_emergency_credit']) . "</td>";
-        echo "</tr>";
-        
+        // รูปแบบแสดงใน Modal ใช้หุ้นค้ำประกัน: 3 บรรทัด
+        echo "<p class='mb-2'><strong>มูลค่าหุ้น " . number_format($stock_value, 2) . " บาท</strong> (" . number_format($stock_count) . " หุ้น)</p>";
+        echo "<p class='mb-2'>วงเงินกู้สามัญ " . number_format($common_credit) . " บาท</p>";
+        echo "<p class='mb-0'>วงเงินกู้ฉุกเฉิน " . number_format($emergency_credit) . " บาท</p>";
     } else {
-        echo "<tr><td colspan='5' class='text-center text-danger'>ไม่พบข้อมูลสมาชิกรหัสนี้</td></tr>";
+        echo "<p class='text-danger mb-0'>ไม่พบข้อมูลสมาชิกรหัสนี้</p>";
     }
 
     mysqli_close($condb);

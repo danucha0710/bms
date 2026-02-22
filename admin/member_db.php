@@ -8,8 +8,8 @@ $member = isset($_POST['member']) ? $_POST['member'] : (isset($_GET['member']) ?
 // 1. เพิ่มสมาชิกใหม่ (ADD)
 // =========================================================
 if ($member == "add"){
-    // ดึงค่าวงเงินเริ่มต้นจากระบบ
-    $query_sys = "SELECT st_max_amount_common, st_max_amount_emergency FROM `system` WHERE st_id = 1";
+    // ดึงค่าวงเงินเริ่มต้นจากระบบ (แยกครู/เจ้าหน้าที่)
+    $query_sys = "SELECT st_max_amount_common_teacher, st_max_amount_common_officer, st_max_amount_emergency FROM `system` WHERE st_id = 1";
     $result_sys = mysqli_query($condb, $query_sys);
     $row_sys = mysqli_fetch_array($result_sys, MYSQLI_ASSOC);
 
@@ -25,7 +25,14 @@ if ($member == "add"){
     $password_raw = !empty($_POST["mem_password"]) ? $_POST["mem_password"] : $_POST["mem_phone"]; 
     $mem_password = password_hash($password_raw, PASSWORD_DEFAULT);
 
-    $mem_common_credit    = $row_sys['st_max_amount_common'];
+    // วงเงินกู้สามัญตามสถานะ: 2=ครู, 3=เจ้าหน้าที่, อื่นๆ ใช้ค่าของเจ้าหน้าที่หรือครู
+    if ($mem_status == '2') {
+        $mem_common_credit = isset($row_sys['st_max_amount_common_teacher']) ? $row_sys['st_max_amount_common_teacher'] : 0;
+    } elseif ($mem_status == '3') {
+        $mem_common_credit = isset($row_sys['st_max_amount_common_officer']) ? $row_sys['st_max_amount_common_officer'] : 0;
+    } else {
+        $mem_common_credit = isset($row_sys['st_max_amount_common_teacher']) ? $row_sys['st_max_amount_common_teacher'] : (isset($row_sys['st_max_amount_common_officer']) ? $row_sys['st_max_amount_common_officer'] : 0);
+    }
     $mem_emergency_credit = $row_sys['st_max_amount_emergency'];
     $mem_register_date    = date("Y-m-d H:i:s");
 

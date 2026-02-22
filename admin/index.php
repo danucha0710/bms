@@ -1,8 +1,8 @@
 <?php 
 session_start();
 
-// 1. เช็คสิทธิ์ Admin
-if (!isset($_SESSION['mem_id']) || $_SESSION['mem_status'] != '0') {
+// 1. เช็คสิทธิ์ Admin หรือพนักงานคีย์ข้อมูล
+if (!isset($_SESSION['mem_id']) || ($_SESSION['mem_status'] != '0' && $_SESSION['mem_status'] != '1')) {
     header("Location: ../login.php");
     exit();
 }

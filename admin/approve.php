@@ -1,10 +1,18 @@
 <?php 
+session_start();
+
+// ตรวจสอบสิทธิ์ Admin
+if (!isset($_SESSION['mem_id']) || $_SESSION['mem_status'] != '0') {
+    header("Location: ../login.php");
+    exit();
+}
+
 $menu = "approve";
 include('../includes/header.php'); // แก้ Path ให้ถูกต้อง
 
 // 1. รับค่าและดึงข้อมูลคำขอ
 $br_id = mysqli_real_escape_string($condb, $_GET["br_id"]);
-$query = "SELECT borrow_request.*, member.mem_name 
+$query = "SELECT borrow_request.*, member.mem_name, member.mem_status 
           FROM borrow_request
           INNER JOIN member ON borrow_request.mem_id = member.mem_id
           WHERE br_id = '$br_id'";
@@ -41,26 +49,26 @@ function getGuaranteeText($type){
         <div class="card shadow-sm border-0">
           <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
             <h4 class="card-title m-0">
-                <i class="fas fa-clipboard-check"></i> พิจารณาคำขอกู้ (ID: <?php echo $value['br_id']; ?>)
+                <i class="fas fa-clipboard-check"></i> พิจารณาคำขอกู้ (เลขที่คำขอ: <?php echo htmlspecialchars($value['br_id']); ?>)
             </h4>
             <a href="borrow_request.php" class="btn btn-light btn-sm"><i class="fas fa-arrow-left"></i> ย้อนกลับ</a>
           </div>
           
           <div class="card-body">
-            <form action="borrow_db.php" method="POST">
+            <form action="borrow_db.php" method="POST" id="approveForm" onsubmit="return validateApproveForm(this);">
               <input type="hidden" name="borrow" value="approve">
-              <input type="hidden" name="by_id" value="<?php echo $_SESSION["mem_id"]; ?>">
-              <input type="hidden" name="st_dateline" value="<?php echo $row_system['st_dateline']; ?>">
-              <input type="hidden" name="mem_id" value="<?php echo $value['mem_id']; ?>">
-              <input type="hidden" name="br_id" value="<?php echo $value['br_id']; ?>">
-              <input type="hidden" name="br_type" value="<?php echo $value['br_type']; ?>">
-              <input type="hidden" name="guarantee_type" value="<?php echo $value['guarantee_type']; ?>">
+              <input type="hidden" name="by_id" value="<?php echo htmlspecialchars($_SESSION["mem_id"]); ?>">
+              <input type="hidden" name="st_dateline" value="<?php echo htmlspecialchars($row_system['st_dateline']); ?>">
+              <input type="hidden" name="mem_id" value="<?php echo htmlspecialchars($value['mem_id']); ?>">
+              <input type="hidden" name="br_id" value="<?php echo htmlspecialchars($value['br_id']); ?>">
+              <input type="hidden" name="br_type" value="<?php echo htmlspecialchars($value['br_type']); ?>">
+              <input type="hidden" name="guarantee_type" value="<?php echo htmlspecialchars($value['guarantee_type']); ?>">
 
               <h6 class="text-primary border-bottom pb-2 mb-3">ข้อมูลผู้ขอกู้</h6>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label fw-bold">ชื่อ-นามสกุล</label>
                 <div class="col-sm-9">
-                  <input type="text" class="form-control-plaintext" value="<?php echo $value['mem_name']; ?>" readonly>
+                  <input type="text" class="form-control-plaintext" value="<?php echo htmlspecialchars($value['mem_name']); ?>" readonly>
                 </div>
               </div>
               <div class="row mb-3">
@@ -78,8 +86,13 @@ function getGuaranteeText($type){
                     <div class="input-group">
                         <input type="number" class="form-control" name="br_amount" 
                             min="1" 
-                            max="<?php echo ($value['br_type']==1) ? $row_system['st_max_amount_common'] : $row_system['st_max_amount_emergency']; ?>" 
-                            value="<?php echo $value['br_amount']; ?>" 
+                            <?php 
+                            $max_amount = ($value['br_type']==1) 
+                                ? (($value['mem_status']==2 || $value['mem_status']=='2') ? $row_system['st_max_amount_common_teacher'] : (($value['mem_status']==3 || $value['mem_status']=='3') ? $row_system['st_max_amount_common_officer'] : max((int)@$row_system['st_max_amount_common_teacher'], (int)@$row_system['st_max_amount_common_officer'])))
+                                : $row_system['st_max_amount_emergency']; 
+                            ?>
+                            max="<?php echo $max_amount; ?>" 
+                            value="<?php echo htmlspecialchars($value['br_amount']); ?>" 
                             <?php echo ($value['br_status']!=0)?'readonly':'required'; ?>>
                         <span class="input-group-text">บาท</span>
                     </div>
@@ -90,10 +103,24 @@ function getGuaranteeText($type){
                         <input type="number" class="form-control" name="br_months_pay" 
                             min="1" 
                             max="<?php echo ($value['br_type']==1) ? $row_system['st_max_months_common'] : $row_system['st_max_months_emergency']; ?>" 
-                            value="<?php echo $value['br_months_pay']; ?>" 
+                            value="<?php echo htmlspecialchars($value['br_months_pay']); ?>" 
                             <?php echo ($value['br_status']!=0)?'readonly':'required'; ?>>
                         <span class="input-group-text">เดือน</span>
                     </div>
+                </div>
+              </div>
+              <?php 
+              $display_interest = (isset($value['br_interest_rate']) && $value['br_interest_rate'] !== '' && $value['br_interest_rate'] !== null) 
+                  ? $value['br_interest_rate'] 
+                  : (isset($row_system['st_interest']) ? $row_system['st_interest'] : 0); 
+              ?>
+              <div class="row mb-3">
+                <label class="col-sm-3 col-form-label fw-bold">อัตราดอกเบี้ย</label>
+                <div class="col-sm-4">
+                  <div class="input-group">
+                    <input type="number" class="form-control" name="br_interest_rate" id="br_interest_rate" value="<?php echo htmlspecialchars($display_interest); ?>" step="0.01" min="0" <?php echo ($value['br_status']!=0)?'readonly':''; ?>>
+                    <span class="input-group-text">% ต่อปี</span>
+                  </div>
                 </div>
               </div>
 
@@ -110,8 +137,8 @@ function getGuaranteeText($type){
                 <label class="col-sm-3 col-form-label fw-bold">ผู้ค้ำประกัน</label>
                 <div class="col-sm-9">
                   <ul class="list-group">
-                    <li class="list-group-item">1. <?php echo $value['guarantor_1']; ?></li>
-                    <li class="list-group-item">2. <?php echo $value['guarantor_2']; ?></li>
+                    <li class="list-group-item">1. <?php echo htmlspecialchars($value['guarantor_1']); ?></li>
+                    <li class="list-group-item">2. <?php echo htmlspecialchars($value['guarantor_2']); ?></li>
                   </ul>
                 </div>
               </div>
@@ -120,7 +147,7 @@ function getGuaranteeText($type){
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label fw-bold">เหตุผลการกู้</label>
                 <div class="col-sm-9">
-                  <textarea class="form-control bg-light" rows="3" readonly><?php echo $value['br_details']; ?></textarea>
+                  <textarea class="form-control bg-light" rows="3" readonly><?php echo htmlspecialchars($value['br_details']); ?></textarea>
                 </div>
               </div>
 
@@ -146,29 +173,18 @@ function getGuaranteeText($type){
                         </div>
                     </div>
 
-                    <div id="approve_options" style="display:none;">
-                        <div class="row mb-3">
-                            <label class="col-sm-3 col-form-label fw-bold">อัตราดอกเบี้ย</label>
-                            <div class="col-sm-4">
-                                <div class="input-group">
-                                    <input type="number" class="form-control" name="br_interest_rate" id="interest_rate" value="<?php echo $row_system['st_interest']; ?>" step="0.01" min="0">
-                                    <span class="input-group-text">% ต่อปี</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div id="reject_options" style="display:none;">
                         <div class="row mb-3">
                             <label class="col-sm-3 col-form-label fw-bold text-danger">เหตุผลที่ไม่อนุมัติ</label>
                             <div class="col-sm-9">
-                                <textarea class="form-control" name="br_respond" id="reject_reason" rows="2" placeholder="ระบุเหตุผล..."></textarea>
+                                <textarea class="form-control" name="br_respond" id="reject_reason" rows="3" placeholder="กรุณาระบุเหตุผลที่ไม่อนุมัติ (บังคับ)"></textarea>
+                                <small class="text-danger d-block mt-1">กรุณากรอกเหตุผลก่อนส่งผลพิจารณา</small>
                             </div>
                         </div>
                     </div>
 
                     <div class="text-center mt-4">
-                        <button type="submit" class="btn btn-success px-5" onclick="return confirm('ยืนยันผลการพิจารณา?');">
+                        <button type="submit" class="btn btn-success px-5">
                             <i class="fas fa-save"></i> บันทึกผลการพิจารณา
                         </button>
                     </div>
@@ -182,9 +198,9 @@ function getGuaranteeText($type){
                     </h5>
                     <hr>
                     <?php if($value['br_status'] == 1){ ?>
-                        <p class="mb-0"><strong>อัตราดอกเบี้ย:</strong> <?php echo $value['br_interest_rate']; ?>% ต่อปี</p>
+                        <p class="mb-0"><strong>อัตราดอกเบี้ย:</strong> <?php echo htmlspecialchars($value['br_interest_rate']); ?>% ต่อปี</p>
                     <?php } else { ?>
-                        <p class="mb-0"><strong>เหตุผล:</strong> <?php echo $value['br_respond']; ?></p>
+                        <p class="mb-0"><strong>เหตุผล:</strong> <?php echo htmlspecialchars($value['br_respond']); ?></p>
                     <?php } ?>
                   </div>
               <?php } ?>
@@ -201,24 +217,29 @@ function getGuaranteeText($type){
 <?php include('../includes/footer.php'); ?>
 
 <script>
+function validateApproveForm(form) {
+    var statusReject = document.getElementById('status_reject');
+    var reasonEl = document.getElementById('reject_reason');
+    if (statusReject && statusReject.checked && reasonEl) {
+        var reason = (reasonEl.value || '').trim();
+        if (reason === '') {
+            alert('กรุณาระบุเหตุผลที่ไม่อนุมัติก่อนส่งผลพิจารณา');
+            reasonEl.focus();
+            return false;
+        }
+    }
+    return confirm('ยืนยันผลการพิจารณา?');
+}
 function toggleReason(status) {
-    const approveDiv = document.getElementById('approve_options');
     const rejectDiv = document.getElementById('reject_options');
-    const interestInput = document.getElementById('interest_rate');
     const reasonInput = document.getElementById('reject_reason');
 
     if (status == 1) { // อนุมัติ
-        approveDiv.style.display = 'block';
         rejectDiv.style.display = 'none';
-        
-        interestInput.required = true;
         reasonInput.required = false;
         reasonInput.value = ''; // ล้างค่าเหตุผล
     } else { // ไม่อนุมัติ
-        approveDiv.style.display = 'none';
         rejectDiv.style.display = 'block';
-        
-        interestInput.required = false;
         reasonInput.required = true;
     }
 }

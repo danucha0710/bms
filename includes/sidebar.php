@@ -7,7 +7,7 @@
                 </div>
             </div>
             <div class="flex-grow-1 ms-2 overflow-hidden">
-                <h6 class="mb-0 text-white text-truncate"><?php echo $_SESSION['mem_name']; ?></h6>
+                <h6 class="mb-0 text-white text-truncate"><?php echo htmlspecialchars($_SESSION['mem_name']); ?></h6>
                 <small>
                     <a href="#" class="text-info text-decoration-none" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#profileModal">
                         <i class="fas fa-user-edit"></i> แก้ไขข้อมูลส่วนตัว
@@ -82,7 +82,9 @@
       <?php 
         $mem_id = $_SESSION["mem_id"];
         if(isset($condb)){
-            $query_member = "SELECT * FROM member WHERE mem_id='$mem_id'";
+            // ป้องกัน SQL Injection
+            $mem_id_safe = mysqli_real_escape_string($condb, $mem_id);
+            $query_member = "SELECT * FROM member WHERE mem_id='$mem_id_safe'";
             $rs_member = mysqli_query($condb, $query_member);
             $row_member = mysqli_fetch_array($rs_member, MYSQLI_ASSOC);
         }
@@ -96,7 +98,7 @@
       
       <form action="member_db.php" method="POST">
         <input type="hidden" name="member" value="edit_profile">
-        <input type="hidden" name="mem_id" value="<?php echo $row_member['mem_id']; ?>">
+        <input type="hidden" name="mem_id" value="<?php echo htmlspecialchars($row_member['mem_id']); ?>">
         
         <div class="modal-header bg-primary text-white">
           <h5 class="modal-title"><i class="fas fa-user-circle me-2"></i> ข้อมูลโปรไฟล์ส่วนตัว</h5>
@@ -114,14 +116,14 @@
           <div class="row mb-3">
             <label class="col-sm-3 col-form-label fw-bold">ชื่อ-นามสกุล</label>
             <div class="col-sm-9">
-              <input type="text" class="form-control" name="mem_name" value="<?php echo $row_member['mem_name']; ?>" required>
+              <input type="text" class="form-control" name="mem_name" value="<?php echo htmlspecialchars($row_member['mem_name']); ?>" required>
             </div>
           </div>
 
           <div class="row mb-3">
             <label class="col-sm-3 col-form-label fw-bold">เลขบัตรประชาชน</label>
             <div class="col-sm-9">
-              <input type="text" class="form-control bg-light" value="<?php echo $row_member['mem_id']; ?>" readonly>
+              <input type="text" class="form-control bg-light" value="<?php echo htmlspecialchars($row_member['mem_id']); ?>" readonly>
               <small class="text-muted">* ข้อมูลนี้ใช้เป็นรหัสล็อกอินหลัก ไม่สามารถแก้ไขได้</small>
             </div>
           </div>
@@ -130,7 +132,7 @@
           <div class="row mb-3">
             <label class="col-sm-3 col-form-label fw-bold">ชื่อผู้ใช้งาน (Username)</label>
             <div class="col-sm-9">
-              <input type="text" class="form-control" name="mem_username" value="<?php echo isset($row_member['mem_username']) ? $row_member['mem_username'] : ''; ?>" required placeholder="กำหนดชื่อผู้ใช้งานสำหรับ Login">
+              <input type="text" class="form-control" name="mem_username" value="<?php echo htmlspecialchars(isset($row_member['mem_username']) ? $row_member['mem_username'] : ''); ?>" required placeholder="กำหนดชื่อผู้ใช้งานสำหรับ Login">
               <small class="text-muted text-danger">* ห้ามใช้ซ้ำกับสมาชิกท่านอื่น</small>
             </div>
           </div>
@@ -147,14 +149,14 @@
           <div class="row mb-3">
             <label class="col-sm-3 col-form-label fw-bold">เบอร์โทรศัพท์</label>
             <div class="col-sm-9">
-              <input type="tel" name="mem_phone" class="form-control" pattern="[0-9]{10}" value="<?php echo $row_member['mem_phone']; ?>" required>
+              <input type="tel" name="mem_phone" class="form-control" pattern="[0-9]{10}" value="<?php echo htmlspecialchars($row_member['mem_phone']); ?>" required>
             </div>
           </div>
 
           <div class="row mb-3">
             <label class="col-sm-3 col-form-label fw-bold">ที่อยู่</label>
             <div class="col-sm-9">
-              <textarea name="mem_address" class="form-control" rows="3"><?php echo $row_member['mem_address']; ?></textarea>
+              <textarea name="mem_address" class="form-control" rows="3"><?php echo htmlspecialchars($row_member['mem_address']); ?></textarea>
             </div>
           </div>
         </div>
