@@ -58,11 +58,17 @@
             
             <li class="px-3 pt-3 pb-1 text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 1px;">Member Menu</li>
             
+            <li class="<?php echo ($menu == 'index') ? 'active' : ''; ?>">
+                <a href="index.php"><i class="fas fa-home me-2"></i> หน้าแรก</a>
+            </li>
             <li class="<?php echo ($menu == 'borrow') ? 'active' : ''; ?>">
-                <a href="borrow.php"><i class="fas fa-hand-holding-usd me-2"></i> ยื่นเรื่องขอกู้เงิน</a>
+                <a href="borrow.php"><i class="fas fa-hand-holding-usd me-2"></i> ยื่นคำขอกู้</a>
             </li>
             <li class="<?php echo ($menu == 'history') ? 'active' : ''; ?>">
-                <a href="history.php"><i class="fas fa-history me-2"></i> ประวัติการทำรายการ</a>
+                <a href="history.php"><i class="fas fa-history me-2"></i> ประวัติคำขอกู้</a>
+            </li>
+            <li class="<?php echo ($menu == 'guarantor') ? 'active' : ''; ?>">
+                <a href="guarantor.php"><i class="fas fa-user-check me-2"></i> คำขอที่ต้องรับรอง</a>
             </li>
 
         <?php } ?>

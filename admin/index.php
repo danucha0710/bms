@@ -30,10 +30,59 @@ $sql_money = "SELECT SUM(br_amount) as total FROM borrow_request WHERE br_status
 $rs_money = mysqli_query($condb, $sql_money);
 $sum_money = mysqli_fetch_assoc($rs_money)['total'];
 
-// 3.4 นับจำนวนรายการที่ต้องจ่าย (ค้างชำระ)
-$sql_due = "SELECT COUNT(*) as total FROM borrowing WHERE bw_status = 0";
-$rs_due = mysqli_query($condb, $sql_due);
-$cnt_due = mysqli_fetch_assoc($rs_due)['total'];
+// 3.4 นับจำนวนงวดรอชำระ/ค้าง เฉพาะ \"เดือนล่าสุด\" (เดือนที่ครบกำหนดเร็วที่สุดที่ยังมีค้าง)
+$sql_first_due = "SELECT MIN(bw_date_pay) AS first_due FROM borrowing WHERE bw_status = 0";
+$rs_first_due = mysqli_query($condb, $sql_first_due);
+$row_first = $rs_first_due ? mysqli_fetch_assoc($rs_first_due) : null;
+$cnt_due = 0;
+if ($row_first && $row_first['first_due']) {
+    $ym = date('Y-m', strtotime($row_first['first_due']));
+    $sql_due = "SELECT COUNT(*) AS total FROM borrowing WHERE bw_status = 0 AND DATE_FORMAT(bw_date_pay,'%Y-%m') = '$ym'";
+    $rs_due = mysqli_query($condb, $sql_due);
+    $cnt_due = $rs_due ? mysqli_fetch_assoc($rs_due)['total'] : 0;
+}
+
+// 3.5 ข้อมูลสำหรับกราฟสถิติการขอกู้ (7 วันย้อนหลัง)
+$chart7_labels = [];
+$chart7_values = [];
+$date_map = [];
+$sql_last7 = "SELECT DATE(br_date_request) AS d, COUNT(*) AS c 
+              FROM borrow_request 
+              WHERE br_date_request >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+              GROUP BY DATE(br_date_request)";
+$rs_last7 = mysqli_query($condb, $sql_last7);
+if ($rs_last7) {
+    while ($r = mysqli_fetch_assoc($rs_last7)) {
+        $date_map[$r['d']] = (int)$r['c'];
+    }
+}
+for ($i = 6; $i >= 0; $i--) {
+    $d = date('Y-m-d', strtotime("-$i days"));
+    $chart7_labels[] = date('d/m', strtotime($d));
+    $chart7_values[] = isset($date_map[$d]) ? $date_map[$d] : 0;
+}
+
+// 3.6 ข้อมูลสำหรับกราฟแนวโน้มยอดเงินกู้ (รายเดือน) – 6 เดือนย้อนหลัง
+$chartM_labels = [];
+$chartM_values = [];
+$month_map = [];
+$startMonth = date('Y-m-01', strtotime('-5 months'));
+$sql_month = "SELECT DATE_FORMAT(br_date_approve,'%Y-%m') AS ym, SUM(br_amount) AS total
+              FROM borrow_request
+              WHERE br_status = 1 AND br_date_approve >= '$startMonth'
+              GROUP BY DATE_FORMAT(br_date_approve,'%Y-%m')
+              ORDER BY ym";
+$rs_month = mysqli_query($condb, $sql_month);
+if ($rs_month) {
+    while ($r = mysqli_fetch_assoc($rs_month)) {
+        $month_map[$r['ym']] = (float)$r['total'];
+    }
+}
+for ($i = 5; $i >= 0; $i--) {
+    $ym = date('Y-m', strtotime("-$i months"));
+    $chartM_labels[] = date('m/Y', strtotime($ym . '-01'));
+    $chartM_values[] = isset($month_map[$ym]) ? $month_map[$ym] : 0;
+}
 ?>
 
 <section class="content">
@@ -101,7 +150,7 @@ $cnt_due = mysqli_fetch_assoc($rs_due)['total'];
                <i class="fas fa-hand-holding-usd opacity-10" style="font-size: 24px; margin-top: 15px;"></i>
             </div>
             <div class="text-end pt-1">
-              <p class="text-sm mb-0 text-capitalize">งวดรอชำระ/ค้าง</p>
+              <p class="text-sm mb-0 text-capitalize">งวดรอชำระเดือนนี้</p>
               <h4 class="mb-0"><?php echo number_format($cnt_due); ?> รายการ</h4>
             </div>
           </div>
@@ -129,7 +178,7 @@ $cnt_due = mysqli_fetch_assoc($rs_due)['total'];
             <hr class="dark horizontal">
             <div class="d-flex ">
               <i class="fas fa-history text-sm my-auto me-1"></i>
-              <p class="mb-0 text-sm"> ข้อมูลจำลอง (ยังไม่เชื่อม DB)</p>
+              <p class="mb-0 text-sm"> จำนวนคำขอกู้ต่อวัน 7 วันที่ผ่านมา</p>
             </div>
           </div>
         </div>
@@ -149,7 +198,7 @@ $cnt_due = mysqli_fetch_assoc($rs_due)['total'];
             <hr class="dark horizontal">
             <div class="d-flex ">
               <i class="fas fa-chart-line text-sm my-auto me-1"></i>
-              <p class="mb-0 text-sm"> ข้อมูลจำลอง (ยังไม่เชื่อม DB)</p>
+              <p class="mb-0 text-sm"> ยอดปล่อยกู้รวมรายเดือน (6 เดือนย้อนหลัง)</p>
             </div>
           </div>
         </div>
@@ -158,5 +207,59 @@ $cnt_due = mysqli_fetch_assoc($rs_due)['total'];
 
   </div>
 </section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var ctxBar = document.getElementById('chart-bars').getContext('2d');
+  new Chart(ctxBar, {
+    type: 'bar',
+    data: {
+      labels: <?php echo json_encode($chart7_labels); ?>,
+      datasets: [{
+        label: 'จำนวนคำขอกู้',
+        data: <?php echo json_encode($chart7_values, JSON_NUMERIC_CHECK); ?>,
+        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
+        }
+      }
+    }
+  });
+
+  var ctxLine = document.getElementById('chart-line').getContext('2d');
+  new Chart(ctxLine, {
+    type: 'line',
+    data: {
+      labels: <?php echo json_encode($chartM_labels); ?>,
+      datasets: [{
+        label: 'ยอดปล่อยกู้ (บาท)',
+        data: <?php echo json_encode($chartM_values, JSON_NUMERIC_CHECK); ?>,
+        borderColor: 'rgba(40, 167, 69, 1)',
+        backgroundColor: 'rgba(40, 167, 69, 0.2)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+});
+</script>
 
 <?php include('../includes/footer.php'); ?>

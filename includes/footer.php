@@ -47,10 +47,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
         });
     }
     
-    // 2. DataTable Setup
+    // 2. DataTable Setup (หน้า mustpay ใช้ order ตามกำหนดชำระ)
     if ($.fn.DataTable) {
+        var dtOrder = (typeof window.MUSTPAY_ORDER !== 'undefined') ? window.MUSTPAY_ORDER : [[0, "desc"]];
         $('#tableSearch').DataTable({
-            "order": [[0, "desc"]], 
+            "order": dtOrder, 
             "pageLength": 25, 
             "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
             "language": {
