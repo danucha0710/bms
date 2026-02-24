@@ -248,14 +248,18 @@ function getBorrowStatus($status_id) {
                         <div class="row mb-3">
                             <label class="col-sm-3 col-form-label">ผู้ค้ำคนที่ 1</label>
                             <div class="col-sm-9 position-relative">
-                                <input type="text" class="form-control" name="guarantor_1" id="guarantor_1_search" placeholder="พิมพ์ชื่อสมาชิกเพื่อค้นหา..." autocomplete="off">
+                                <input type="text" class="form-control" id="guarantor_1_search" placeholder="พิมพ์ชื่อสมาชิกเพื่อค้นหา..." autocomplete="off">
+                                <input type="hidden" name="guarantor_1" id="guarantor_1_name">
+                                <input type="hidden" name="guarantor_1_id" id="guarantor_1_id">
                                 <div id="guarantor1Dropdown" class="list-group border rounded shadow-sm bg-white position-absolute w-100" style="display:none; max-height: 220px; overflow-y: auto; z-index: 1050; top: 100%; left: 0;"></div>
                             </div>
                         </div>
                         <div class="row mb-3">
                             <label class="col-sm-3 col-form-label">ผู้ค้ำคนที่ 2</label>
                             <div class="col-sm-9 position-relative">
-                                <input type="text" class="form-control" name="guarantor_2" id="guarantor_2_search" placeholder="พิมพ์ชื่อสมาชิกเพื่อค้นหา..." autocomplete="off">
+                                <input type="text" class="form-control" id="guarantor_2_search" placeholder="พิมพ์ชื่อสมาชิกเพื่อค้นหา..." autocomplete="off">
+                                <input type="hidden" name="guarantor_2" id="guarantor_2_name">
+                                <input type="hidden" name="guarantor_2_id" id="guarantor_2_id">
                                 <div id="guarantor2Dropdown" class="list-group border rounded shadow-sm bg-white position-absolute w-100" style="display:none; max-height: 220px; overflow-y: auto; z-index: 1050; top: 100%; left: 0;"></div>
                             </div>
                         </div>
@@ -389,8 +393,16 @@ document.addEventListener("DOMContentLoaded", function() {
         updateCommonLoanLimit();
         var g1 = document.getElementById('guarantor_1_search');
         var g2 = document.getElementById('guarantor_2_search');
+        var g1Name = document.getElementById('guarantor_1_name');
+        var g1Id = document.getElementById('guarantor_1_id');
+        var g2Name = document.getElementById('guarantor_2_name');
+        var g2Id = document.getElementById('guarantor_2_id');
         if (g1) { g1.value = ''; }
         if (g2) { g2.value = ''; }
+        if (g1Name) { g1Name.value = ''; }
+        if (g1Id) { g1Id.value = ''; }
+        if (g2Name) { g2Name.value = ''; }
+        if (g2Id) { g2Id.value = ''; }
         if (document.getElementById('guarantor1Dropdown')) document.getElementById('guarantor1Dropdown').style.display = 'none';
         if (document.getElementById('guarantor2Dropdown')) document.getElementById('guarantor2Dropdown').style.display = 'none';
     });
@@ -430,28 +442,32 @@ document.addEventListener("DOMContentLoaded", function() {
     const stockSection = document.getElementById('stock_check_section');
     var guarantor1Search = document.getElementById('guarantor_1_search');
     var guarantor2Search = document.getElementById('guarantor_2_search');
+    var guarantor1Name = document.getElementById('guarantor_1_name');
+    var guarantor1Id = document.getElementById('guarantor_1_id');
+    var guarantor2Name = document.getElementById('guarantor_2_name');
+    var guarantor2Id = document.getElementById('guarantor_2_id');
 
     guaType.addEventListener('change', function() {
         if(this.value == '1') { // บุคคล
             guaSection.style.display = 'block';
             stockSection.style.display = 'none';
-            guarantor1Search.required = true;
-            guarantor2Search.required = true;
+            if (guarantor1Search) guarantor1Search.required = true;
+            if (guarantor2Search) guarantor2Search.required = true;
         } else if(this.value == '2') { // หุ้น
             guaSection.style.display = 'none';
             stockSection.style.display = 'block';
-            guarantor1Search.required = false;
-            guarantor2Search.required = false;
+            if (guarantor1Search) guarantor1Search.required = false;
+            if (guarantor2Search) guarantor2Search.required = false;
         } else {
             guaSection.style.display = 'none';
             stockSection.style.display = 'none';
-            guarantor1Search.required = false;
-            guarantor2Search.required = false;
+            if (guarantor1Search) guarantor1Search.required = false;
+            if (guarantor2Search) guarantor2Search.required = false;
         }
     });
 
     // Live Search ผู้ค้ำคนที่ 1 และ 2 (ใช้ memberList เหมือนช่องชื่อสมาชิก, ไม่แสดงชื่อผู้ขอกู้)
-    function renderGuarantorDropdown(filter, dropdownEl, inputEl) {
+    function renderGuarantorDropdown(filter, dropdownEl, searchEl, nameEl, idEl) {
         var borrowerId = (memIdHidden && memIdHidden.value) ? memIdHidden.value.trim() : '';
         var q = (filter || '').trim().toLowerCase();
         var list = q
@@ -472,7 +488,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 a.textContent = m.name;
                 a.addEventListener('click', function(e) {
                     e.preventDefault();
-                    inputEl.value = m.name;
+                    if (searchEl) searchEl.value = m.name;
+                    if (nameEl) nameEl.value = m.name;
+                    if (idEl) idEl.value = m.id;
                     dropdownEl.style.display = 'none';
                 });
                 dropdownEl.appendChild(a);
@@ -485,13 +503,13 @@ document.addEventListener("DOMContentLoaded", function() {
     var guarantor2Drop = document.getElementById('guarantor2Dropdown');
 
     if (guarantor1Search && guarantor1Drop) {
-        guarantor1Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search); });
-        guarantor1Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search); });
+        guarantor1Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search, guarantor1Name, guarantor1Id); });
+        guarantor1Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search, guarantor1Name, guarantor1Id); });
         guarantor1Search.addEventListener('blur', function() { setTimeout(function() { guarantor1Drop.style.display = 'none'; }, 200); });
     }
     if (guarantor2Search && guarantor2Drop) {
-        guarantor2Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search); });
-        guarantor2Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search); });
+        guarantor2Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search, guarantor2Name, guarantor2Id); });
+        guarantor2Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search, guarantor2Name, guarantor2Id); });
         guarantor2Search.addEventListener('blur', function() { setTimeout(function() { guarantor2Drop.style.display = 'none'; }, 200); });
     }
 

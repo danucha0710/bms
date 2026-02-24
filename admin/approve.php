@@ -12,10 +12,15 @@ include('../includes/header.php'); // แก้ Path ให้ถูกต้อ
 
 // 1. รับค่าและดึงข้อมูลคำขอ
 $br_id = mysqli_real_escape_string($condb, $_GET["br_id"]);
-$query = "SELECT borrow_request.*, member.mem_name, member.mem_status 
-          FROM borrow_request
-          INNER JOIN member ON borrow_request.mem_id = member.mem_id
-          WHERE br_id = '$br_id'";
+// Join member ของผู้กู้ + ผู้ค้ำทั้ง 2 คน ผ่าน guarantor_1_id / guarantor_2_id
+$query = "SELECT br.*, m.mem_name, m.mem_status,
+                 g1.mem_name AS guarantor1_name,
+                 g2.mem_name AS guarantor2_name
+          FROM borrow_request br
+          INNER JOIN member m ON br.mem_id = m.mem_id
+          LEFT JOIN member g1 ON br.guarantor_1_id = g1.mem_id
+          LEFT JOIN member g2 ON br.guarantor_2_id = g2.mem_id
+          WHERE br.br_id = '$br_id'";
 $result = mysqli_query($condb, $query) or die("Error : ".mysqli_error($condb));
 $value = mysqli_fetch_array($result, MYSQLI_ASSOC);
 
@@ -41,7 +46,7 @@ function getGuaranteeText($type){
 }
 ?>
 
-<section class="content mt-4">
+<section class="content">
   <div class="container-fluid">
     <div class="row justify-content-center">
       <div class="col-md-10">
@@ -137,8 +142,18 @@ function getGuaranteeText($type){
                 <label class="col-sm-3 col-form-label fw-bold">ผู้ค้ำประกัน</label>
                 <div class="col-sm-9">
                   <ul class="list-group">
-                    <li class="list-group-item">1. <?php echo htmlspecialchars($value['guarantor_1']); ?></li>
-                    <li class="list-group-item">2. <?php echo htmlspecialchars($value['guarantor_2']); ?></li>
+                    <li class="list-group-item">
+                      1. <?php 
+                        $g1Name = $value['guarantor1_name'] ?? '';
+                        echo $g1Name !== '' ? htmlspecialchars($g1Name) : '-';
+                      ?>
+                    </li>
+                    <li class="list-group-item">
+                      2. <?php 
+                        $g2Name = $value['guarantor2_name'] ?? '';
+                        echo $g2Name !== '' ? htmlspecialchars($g2Name) : '-';
+                      ?>
+                    </li>
                   </ul>
                 </div>
               </div>

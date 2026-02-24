@@ -31,8 +31,11 @@ if ($borrow == "add"){
 		$br_months_pay = mysqli_real_escape_string($condb,$_POST["br_months_pay_emergency"]);
 	}
 	$guarantee_type = mysqli_real_escape_string($condb,$_POST["guarantee_type"]);
-	$guarantor_1 = mysqli_real_escape_string($condb,$_POST["guarantor_1"]);
-	$guarantor_2 = mysqli_real_escape_string($condb,$_POST["guarantor_2"]);
+	// ไม่ใช้ guarantor_1 / guarantor_2 ในระบบอีกต่อไป เก็บว่างไว้เพื่อให้โครงสร้างตารางเดิมทำงานได้
+	$guarantor_1 = '';
+	$guarantor_2 = '';
+	$guarantor_1_id = isset($_POST["guarantor_1_id"]) ? mysqli_real_escape_string($condb,$_POST["guarantor_1_id"]) : '';
+	$guarantor_2_id = isset($_POST["guarantor_2_id"]) ? mysqli_real_escape_string($condb,$_POST["guarantor_2_id"]) : '';
 	$br_details = mysqli_real_escape_string($condb,$_POST["br_details"]);
 	$date = date("Y-m-d H:i:s");
 	$br_interest_rate = isset($_POST["br_interest_rate"]) && $_POST["br_interest_rate"] !== '' ? (float)$_POST["br_interest_rate"] : 0;
@@ -44,14 +47,17 @@ if ($borrow == "add"){
 	$guarantee_type = (int)$guarantee_type;
 	
 	if($guarantee_type == 1) {
+		// ใช้ผู้ค้ำประกันแบบบุคคล: ใช้ mem_id ผู้ค้ำผ่าน guarantor_1_id / guarantor_2_id และแจ้งไปยังผู้ค้ำให้ยืนยัน
 		$sql = "INSERT INTO borrow_request(
 		mem_id,
 		br_type,
 		br_amount,
 		br_months_pay,
 		guarantee_type,
-		guarantor_1,
-		guarantor_2,
+		guarantor_1_id,
+		guarantor_2_id,
+		guarantor_1_approve,
+		guarantor_2_approve,
 		br_details,
 		br_interest_rate,
 		br_date_request)
@@ -61,12 +67,32 @@ if ($borrow == "add"){
 		$br_amount,
 		$br_months_pay,
 		$guarantee_type,
-		'$guarantor_1',
-		'$guarantor_2',
+		" . ($guarantor_1_id ? "'$guarantor_1_id'" : "NULL") . ",
+		" . ($guarantor_2_id ? "'$guarantor_2_id'" : "NULL") . ",
+		0,
+		0,
 		'$br_details',
 		$br_interest_rate,
 		'$date')";
 		$result = mysqli_query($condb, $sql) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
+
+		// ถ้าบันทึกสำเร็จ ให้สร้างการแจ้งเตือนให้ผู้ค้ำทั้ง 2 คน
+		if ($result) {
+			$br_id_new = mysqli_insert_id($condb);
+			$alert_date = date("Y-m-d H:i:s");
+			$alert_msg = "คุณถูกระบุเป็นผู้ค้ำประกันคำขอกู้เลขที่ $br_id_new กรุณาเข้าสู่ระบบเพื่อยืนยันการค้ำประกัน";
+
+			if ($guarantor_1_id) {
+				$msg1 = mysqli_real_escape_string($condb, $alert_msg);
+				$mem1 = mysqli_real_escape_string($condb, $guarantor_1_id);
+				mysqli_query($condb, "INSERT INTO borrow_alert (mem_id, ba_message, ba_date, ba_read_status) VALUES ('$mem1', '$msg1', '$alert_date', 0)");
+			}
+			if ($guarantor_2_id) {
+				$msg2 = mysqli_real_escape_string($condb, $alert_msg);
+				$mem2 = mysqli_real_escape_string($condb, $guarantor_2_id);
+				mysqli_query($condb, "INSERT INTO borrow_alert (mem_id, ba_message, ba_date, ba_read_status) VALUES ('$mem2', '$msg2', '$alert_date', 0)");
+			}
+		}
 	}
 	elseif($guarantee_type == 2) {
 		$sql = "INSERT INTO borrow_request(
@@ -147,6 +173,37 @@ elseif ($borrow == "approve"){
 		$result1 = mysqli_query($condb, $sql1);
 		$row = mysqli_fetch_array($result1, MYSQLI_ASSOC);
 
+		// ตรวจสอบเงื่อนไขก่อนอนุมัติ: ต้องมีผู้ค้ำทั้ง 2 คนอนุมัติแล้ว หรือใช้หุ้นค้ำโดยหุ้นเพียงพอ
+		$br_type = (int)$row['br_type'];               // 1=สามัญ, 2=ฉุกเฉิน
+		$guarantee_type_row = (int)$row['guarantee_type']; // 1=บุคคล, 2=หุ้น
+		$g1_approve = isset($row['guarantor_1_approve']) ? (int)$row['guarantor_1_approve'] : 0;
+		$g2_approve = isset($row['guarantor_2_approve']) ? (int)$row['guarantor_2_approve'] : 0;
+		$mem_amount_stock = isset($row['mem_amount_stock']) ? (int)$row['mem_amount_stock'] : 0;
+
+		$original_br_amount = (float)$row['br_amount'];
+
+		$hasGuarantorsOk = ($g1_approve === 1 && $g2_approve === 1);
+		$hasStockEnough = ($mem_amount_stock > $original_br_amount);
+
+		$canApprove = false;
+		if ($guarantee_type_row === 1) { // ใช้บุคคลค้ำประกัน
+			// ต้องมีผู้ค้ำทั้ง 2 คนกดอนุมัติก่อนเท่านั้น
+			$canApprove = $hasGuarantorsOk;
+		} elseif ($guarantee_type_row === 2) { // ใช้หุ้นค้ำประกัน
+			// ต้องมีจำนวนหุ้นมากกว่าวงเงินที่ต้องการกู้
+			$canApprove = $hasStockEnough;
+		}
+
+		if (!$canApprove) {
+			mysqli_close($condb);
+			ob_end_clean();
+			echo "<script type='text/javascript'>";
+			echo "alert('ไม่สามารถอนุมัติได้: ต้องมีผู้ค้ำทั้ง 2 คนอนุมัติ หรือจำนวนหุ้นมากกว่าวงเงินกู้ที่ขอ');";
+			echo "window.location = 'approve.php?br_id=" . (int)$br_id . "';";
+			echo "</script>";
+			exit;
+		}
+
 		$sql2 = "SELECT * FROM system";
 		$result2 = mysqli_query($condb, $sql2);
 		$row_system = mysqli_fetch_array($result2, MYSQLI_ASSOC);
@@ -154,8 +211,6 @@ elseif ($borrow == "approve"){
 		// คำนวณเงินที่ต้องจ่ายแต่ละเดือน (รายจ่ายแต่ละงวด) แล้วบันทึกลง borrowing
 		// สูตร: ดอกเบี้ยต่องวด = ปัดขึ้น(ยอดคงค้าง × อัตราดอกเบี้ยต่อปี/12 / 100), ยอดชำระต่องวด = เงินต้นต่องวด + ดอกเบี้ย
 		// เงินกู้สามัญ (br_type=1): เงินต้นต่องวดคงที่จากระบบ (ครู/เจ้าหน้าที่). เงินกู้ฉุกเฉิน (br_type=2): เงินต้นต่องวด = ยอดกู้/จำนวนงวด
-		$br_type = (int)$row['br_type'];
-		$original_br_amount = (float)$row['br_amount'];
 		$br_amount = $original_br_amount;
 		$br_months_pay = (int)$row['br_months_pay'];
 		$br_interest_rate = (float)$row['br_interest_rate'];
@@ -200,7 +255,30 @@ elseif ($borrow == "approve"){
 			$result1 = mysqli_query($condb, $sql2);
 		}
 
-		if($result and $result1){
+		// หลังอนุมัติ: หักวงเงินกู้จากเครดิตคงเหลือของสมาชิกตามประเภทที่กู้
+		$update_credit_ok = true;
+		if ($mem_status == 2 || $mem_status == 3) { // ครู / เจ้าหน้าที่ เท่านั้นที่มีวงเงิน
+			$mem_id_credit = mysqli_real_escape_string($condb, $row['mem_id']);
+			if ($br_type === 1) { // เงินกู้สามัญ
+				$current_common = isset($row['mem_common_credit']) ? (int)$row['mem_common_credit'] : 0;
+				$new_common = $current_common - (int)$original_br_amount;
+				if ($new_common < 0) $new_common = 0;
+				$sql_credit = "UPDATE member SET mem_common_credit = $new_common WHERE mem_id = '$mem_id_credit'";
+			} elseif ($br_type === 2) { // เงินกู้ฉุกเฉิน
+				$current_emergency = isset($row['mem_emergency_credit']) ? (int)$row['mem_emergency_credit'] : 0;
+				$new_emergency = $current_emergency - (int)$original_br_amount;
+				if ($new_emergency < 0) $new_emergency = 0;
+				$sql_credit = "UPDATE member SET mem_emergency_credit = $new_emergency WHERE mem_id = '$mem_id_credit'";
+			} else {
+				$sql_credit = '';
+			}
+
+			if (!empty($sql_credit)) {
+				$update_credit_ok = mysqli_query($condb, $sql_credit);
+			}
+		}
+
+		if($result and $result1 and $update_credit_ok){
 			mysqli_close($condb);
 			ob_end_clean();
 			echo "<script type='text/javascript'>";

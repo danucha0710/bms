@@ -36,7 +36,7 @@ function guarantorStatus($g) {
     $g = (int)$g;
     if ($g === 1) return '<span class="badge bg-success">อนุมัติ</span>';
     if ($g === 2) return '<span class="badge bg-danger">ไม่อนุมัติ</span>';
-    return '<span class="badge bg-secondary">รอ</span>';
+    return '<span class="badge bg-secondary">รอยืนยัน</span>';
 }
 ?>
 

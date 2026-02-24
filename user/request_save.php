@@ -34,8 +34,9 @@ if ($br_type < 1 || $br_type > 2 || $br_amount <= 0 || $br_months_pay <= 0) {
     exit();
 }
 
-$guarantor_1 = mysqli_real_escape_string($condb, $_POST['guarantor_1'] ?? '');
-$guarantor_2 = mysqli_real_escape_string($condb, $_POST['guarantor_2'] ?? '');
+// ไม่ใช้ชื่อผู้ค้ำ (guarantor_1, guarantor_2) ในระบบอีกต่อไป ค่าใน DB จะเว้นว่างไว้
+$guarantor_1 = '';
+$guarantor_2 = '';
 $guarantor_1_id = mysqli_real_escape_string($condb, $_POST['guarantor_1_id'] ?? '');
 $guarantor_2_id = mysqli_real_escape_string($condb, $_POST['guarantor_2_id'] ?? '');
 
@@ -44,13 +45,9 @@ $cr = @mysqli_query($condb, "SHOW COLUMNS FROM borrow_request LIKE 'guarantor_1_
 if ($cr && mysqli_fetch_assoc($cr)) $has_guarantor_approve = true;
 
 if ($guarantee_type == 1) {
-    if ($has_guarantor_approve) {
-        $sql = "INSERT INTO borrow_request (mem_id, br_type, br_amount, br_months_pay, guarantee_type, guarantor_1, guarantor_2, guarantor_1_id, guarantor_2_id, guarantor_1_approve, guarantor_2_approve, br_details, br_interest_rate, br_date_request) 
-                VALUES ('$mem_id', $br_type, $br_amount, $br_months_pay, $guarantee_type, '$guarantor_1', '$guarantor_2', " . ($guarantor_1_id ? "'$guarantor_1_id'" : "NULL") . ", " . ($guarantor_2_id ? "'$guarantor_2_id'" : "NULL") . ", 0, 0, '$br_details', $br_interest_rate, '$date')";
-    } else {
-        $sql = "INSERT INTO borrow_request (mem_id, br_type, br_amount, br_months_pay, guarantee_type, guarantor_1, guarantor_2, br_details, br_interest_rate, br_date_request) 
-                VALUES ('$mem_id', $br_type, $br_amount, $br_months_pay, $guarantee_type, '$guarantor_1', '$guarantor_2', '$br_details', $br_interest_rate, '$date')";
-    }
+    // ใช้ mem_id ผู้ค้ำผ่าน guarantor_1_id / guarantor_2_id เท่านั้น (ตารางไม่มี guarantor_1/guarantor_2 แล้ว)
+    $sql = "INSERT INTO borrow_request (mem_id, br_type, br_amount, br_months_pay, guarantee_type, guarantor_1_id, guarantor_2_id, guarantor_1_approve, guarantor_2_approve, br_details, br_interest_rate, br_date_request) 
+            VALUES ('$mem_id', $br_type, $br_amount, $br_months_pay, $guarantee_type, " . ($guarantor_1_id ? "'$guarantor_1_id'" : "NULL") . ", " . ($guarantor_2_id ? "'$guarantor_2_id'" : "NULL") . ", 0, 0, '$br_details', $br_interest_rate, '$date')";
 } else {
     $sql = "INSERT INTO borrow_request (mem_id, br_type, br_amount, br_months_pay, guarantee_type, br_details, br_interest_rate, br_date_request) 
             VALUES ('$mem_id', $br_type, $br_amount, $br_months_pay, $guarantee_type, '$br_details', $br_interest_rate, '$date')";

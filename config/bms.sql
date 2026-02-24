@@ -179,6 +179,7 @@ CREATE TABLE `member` (
   `mem_username` varchar(20) NOT NULL,
   `mem_password` varchar(255) NOT NULL,
   `mem_amount_stock` int(10) UNSIGNED NOT NULL COMMENT 'จำนวนหุ้น',
+  `mem_stock_savings` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'เงินที่สมาชิกออมหุ้นทุกเดือน (บาท)',
   `mem_common_credit` int(10) UNSIGNED NOT NULL,
   `mem_emergency_credit` int(10) UNSIGNED NOT NULL,
   `mem_register_date` datetime NOT NULL
@@ -188,12 +189,12 @@ CREATE TABLE `member` (
 -- Dumping data for table `member`
 --
 
-INSERT INTO `member` (`mem_id`, `mem_name`, `mem_address`, `mem_phone`, `mem_status`, `mem_username`, `mem_password`, `mem_amount_stock`, `mem_common_credit`, `mem_emergency_credit`, `mem_register_date`) VALUES
-('0000000000000', 'Administrator', '410 หมู่ที่ 1 ถนนบึงพระ-พิษณุโลก ต.บึงพระ อ.เมืองพิษณุโลก จ.พิษณุโลก 65000', '0000000000', 0, 'admin', '$2y$10$mUvdneOy2QPZT9NW/QclvO99afC21X7AcHqWWBI/FgfIp8FVMrFPG', 0, 80000, 5000, '2023-04-29 10:06:02'),
-('1111111111111', '1111', '1', '0111111111', 2, '111111', '$2y$10$z7iF7VxEaa4xESH8k9MoZegtcogxn7Z//nXciQ207ojttRecjK8yG', 0, 80000, 5000, '2026-02-17 14:22:46'),
-('2222222222222', '22', '2', '0222222222', 1, '222222', '$2y$10$WGFvNEis/EOtrGGwihwg7eeZ0A4ChfdEYgh39/2ImFewG9VcoVf3i', 0, 80000, 5000, '2025-02-04 12:47:36'),
-('3333333333333', '33', '3', '0333333333', 3, '333333', '$2y$10$Bvta3FU01.vVSJ7jokQw4.kzDSHdQbfVw99KgVTkujRJunMuCNDC2', 0, 80000, 5000, '2025-02-04 12:50:32'),
-('4444444444444', '444', '44444', '0444444444', 2, '444444', '$2y$10$PM.cbWUgyh6UOi/63xgbH.0fW0tCO8uzuAgYd5ZhpRQ4HtANtJ9Uu', 0, 80000, 5000, '2026-02-23 01:18:23');
+INSERT INTO `member` (`mem_id`, `mem_name`, `mem_address`, `mem_phone`, `mem_status`, `mem_username`, `mem_password`, `mem_amount_stock`, `mem_stock_savings`, `mem_common_credit`, `mem_emergency_credit`, `mem_register_date`) VALUES
+('0000000000000', 'Administrator', '410 หมู่ที่ 1 ถนนบึงพระ-พิษณุโลก ต.บึงพระ อ.เมืองพิษณุโลก จ.พิษณุโลก 65000', '0000000000', 0, 'admin', '$2y$10$mUvdneOy2QPZT9NW/QclvO99afC21X7AcHqWWBI/FgfIp8FVMrFPG', 0, 0, 80000, 5000, '2023-04-29 10:06:02'),
+('1111111111111', '1111', '1', '0111111111', 2, '111111', '$2y$10$z7iF7VxEaa4xESH8k9MoZegtcogxn7Z//nXciQ207ojttRecjK8yG', 0, 0, 80000, 5000, '2026-02-17 14:22:46'),
+('2222222222222', '22', '2', '0222222222', 1, '222222', '$2y$10$WGFvNEis/EOtrGGwihwg7eeZ0A4ChfdEYgh39/2ImFewG9VcoVf3i', 0, 0, 80000, 5000, '2025-02-04 12:47:36'),
+('3333333333333', '33', '3', '0333333333', 3, '333333', '$2y$10$Bvta3FU01.vVSJ7jokQw4.kzDSHdQbfVw99KgVTkujRJunMuCNDC2', 0, 0, 80000, 5000, '2025-02-04 12:50:32'),
+('4444444444444', '444', '44444', '0444444444', 2, '444444', '$2y$10$PM.cbWUgyh6UOi/63xgbH.0fW0tCO8uzuAgYd5ZhpRQ4HtANtJ9Uu', 0, 0, 80000, 5000, '2026-02-23 01:18:23');
 
 -- --------------------------------------------------------
 
@@ -206,6 +207,8 @@ CREATE TABLE `system` (
   `st_max_amount_common_teacher` int(10) UNSIGNED NOT NULL COMMENT 'วงเงินกู้สูงสุด (เงินกู้สามัญ ครู)',
   `st_max_amount_common_officer` int(10) UNSIGNED NOT NULL COMMENT 'วงเงินกู้สูงสุด (เงินกู้สามัญ เจ้าหน้าที่)',
   `st_max_amount_emergency` int(10) UNSIGNED NOT NULL COMMENT 'วงเงินกู้สูงสุด (เงินกู้ฉุกเฉิน)',
+  `st_min_stock_savings` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'เงินออมหุ้นขั้นต่ำ (บาท)',
+  `st_max_stock_savings` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'เงินออมหุ้นสูงสุด (บาท)',
   `st_amount_cost_teacher` int(10) UNSIGNED NOT NULL COMMENT 'จำนวนเงินต้น (ครู)',
   `st_amount_cost_officer` int(10) UNSIGNED NOT NULL COMMENT 'จำนวนเงินต้น (เจ้าหน้าที่)',
   `st_max_months_common` int(10) UNSIGNED NOT NULL COMMENT 'จำนวนเดือนที่ผ่อนชำระสูงสุด (เงินกู้สามัญ)',
@@ -221,8 +224,8 @@ CREATE TABLE `system` (
 -- Dumping data for table `system`
 --
 
-INSERT INTO `system` (`st_id`, `st_max_amount_common_teacher`, `st_max_amount_common_officer`, `st_max_amount_emergency`, `st_amount_cost_teacher`, `st_amount_cost_officer`, `st_max_months_common`, `st_max_months_emergency`, `st_interest`, `st_stock_price`, `st_dividend_rate`, `st_average_return_rate`, `st_dateline`) VALUES
-(1, 80000, 40000, 5000, 2000, 1000, 40, 5, 9, 200, 4.5, 10, 1);
+INSERT INTO `system` (`st_id`, `st_max_amount_common_teacher`, `st_max_amount_common_officer`, `st_max_amount_emergency`, `st_min_stock_savings`, `st_max_stock_savings`, `st_amount_cost_teacher`, `st_amount_cost_officer`, `st_max_months_common`, `st_max_months_emergency`, `st_interest`, `st_stock_price`, `st_dividend_rate`, `st_average_return_rate`, `st_dateline`) VALUES
+(1, 80000, 40000, 5000, 0, 0, 2000, 1000, 40, 5, 9, 200, 4.5, 10, 1);
 
 --
 -- Indexes for dumped tables

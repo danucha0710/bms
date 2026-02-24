@@ -17,6 +17,8 @@ if (isset($_POST['system']) && $_POST['system'] == "setting") {
     $st_max_amount_common_teacher = mysqli_real_escape_string($condb, $_POST["st_max_amount_common_teacher"]);
     $st_max_amount_common_officer = mysqli_real_escape_string($condb, $_POST["st_max_amount_common_officer"]);
     $st_max_amount_emergency      = mysqli_real_escape_string($condb, $_POST["st_max_amount_emergency"]);
+    $st_min_stock_savings         = (int) ($_POST["st_min_stock_savings"] ?? 0);
+    $st_max_stock_savings         = (int) ($_POST["st_max_stock_savings"] ?? 0);
     $st_amount_cost_teacher  = mysqli_real_escape_string($condb, $_POST["st_amount_cost_teacher"]);
     $st_amount_cost_officer  = mysqli_real_escape_string($condb, $_POST["st_amount_cost_officer"]);
     $st_max_months_common    = mysqli_real_escape_string($condb, $_POST["st_max_months_common"]);
@@ -35,6 +37,8 @@ if (isset($_POST['system']) && $_POST['system'] == "setting") {
             st_max_amount_common_teacher = '$st_max_amount_common_teacher',
             st_max_amount_common_officer = '$st_max_amount_common_officer',
             st_max_amount_emergency      = '$st_max_amount_emergency',
+            st_min_stock_savings         = " . $st_min_stock_savings . ",
+            st_max_stock_savings         = " . $st_max_stock_savings . ",
             st_amount_cost_teacher  = '$st_amount_cost_teacher',
             st_amount_cost_officer  = '$st_amount_cost_officer',
             st_max_months_common    = '$st_max_months_common',
@@ -54,6 +58,7 @@ if (isset($_POST['system']) && $_POST['system'] == "setting") {
         // จัดรูปแบบข้อความ Log ให้อ่านง่าย
         $log_text = "ปรับปรุงการตั้งค่าระบบ: 
         [กู้สามัญครู: $st_max_amount_common_teacher, กู้สามัญเจ้าหน้าที่: $st_max_amount_common_officer, กู้ฉุกเฉิน: $st_max_amount_emergency]
+        [เงินออมหุ้นขั้นต่ำ: $st_min_stock_savings, เงินออมหุ้นสูงสุด: $st_max_stock_savings]
         [ดอกเบี้ย: $st_interest%, หุ้น: $st_stock_price, ปันผล: $st_dividend_rate%, เฉลี่ยคืน: $st_average_return_rate%]
         [ตัดรอบวันที่: $st_dateline]";
         

@@ -8,8 +8,8 @@ $member = isset($_POST['member']) ? $_POST['member'] : (isset($_GET['member']) ?
 // 1. เพิ่มสมาชิกใหม่ (ADD)
 // =========================================================
 if ($member == "add"){
-    // ดึงค่าวงเงินเริ่มต้นจากระบบ (แยกครู/เจ้าหน้าที่)
-    $query_sys = "SELECT st_max_amount_common_teacher, st_max_amount_common_officer, st_max_amount_emergency FROM `system` WHERE st_id = 1";
+    // ดึงค่าวงเงินเริ่มต้นจากระบบ (แยกครู/เจ้าหน้าที่) และช่วงเงินออมหุ้น/เดือน
+    $query_sys = "SELECT st_max_amount_common_teacher, st_max_amount_common_officer, st_max_amount_emergency, st_min_stock_savings, st_max_stock_savings FROM `system` WHERE st_id = 1";
     $result_sys = mysqli_query($condb, $query_sys);
     $row_sys = mysqli_fetch_array($result_sys, MYSQLI_ASSOC);
 
@@ -25,15 +25,40 @@ if ($member == "add"){
     $password_raw = !empty($_POST["mem_password"]) ? $_POST["mem_password"] : $_POST["mem_phone"]; 
     $mem_password = password_hash($password_raw, PASSWORD_DEFAULT);
 
-    // วงเงินกู้สามัญตามสถานะ: 2=ครู, 3=เจ้าหน้าที่, อื่นๆ ใช้ค่าของเจ้าหน้าที่หรือครู
-    if ($mem_status == '2') {
-        $mem_common_credit = isset($row_sys['st_max_amount_common_teacher']) ? $row_sys['st_max_amount_common_teacher'] : 0;
+    // วงเงินกู้ตามสถานะ: Admin(0) และ พนักงานคีย์ข้อมูล(1) = 0; ครู(2)/เจ้าหน้าที่(3) = อิงจากตั้งค่าระบบ
+    if ($mem_status == '0' || $mem_status == '1') {
+        $mem_common_credit = 0;
+        $mem_emergency_credit = 0;
+    } elseif ($mem_status == '2') {
+        $mem_common_credit = isset($row_sys['st_max_amount_common_teacher']) ? (int)$row_sys['st_max_amount_common_teacher'] : 0;
+        $mem_emergency_credit = isset($row_sys['st_max_amount_emergency']) ? (int)$row_sys['st_max_amount_emergency'] : 0;
     } elseif ($mem_status == '3') {
-        $mem_common_credit = isset($row_sys['st_max_amount_common_officer']) ? $row_sys['st_max_amount_common_officer'] : 0;
+        $mem_common_credit = isset($row_sys['st_max_amount_common_officer']) ? (int)$row_sys['st_max_amount_common_officer'] : 0;
+        $mem_emergency_credit = isset($row_sys['st_max_amount_emergency']) ? (int)$row_sys['st_max_amount_emergency'] : 0;
     } else {
-        $mem_common_credit = isset($row_sys['st_max_amount_common_teacher']) ? $row_sys['st_max_amount_common_teacher'] : (isset($row_sys['st_max_amount_common_officer']) ? $row_sys['st_max_amount_common_officer'] : 0);
+        $mem_common_credit = 0;
+        $mem_emergency_credit = 0;
     }
-    $mem_emergency_credit = $row_sys['st_max_amount_emergency'];
+
+    // เงินออมหุ้น/เดือน
+    $min_stock = isset($row_sys['st_min_stock_savings']) ? (int)$row_sys['st_min_stock_savings'] : 0;
+    $max_stock = isset($row_sys['st_max_stock_savings']) ? (int)$row_sys['st_max_stock_savings'] : 0;
+    if ($mem_status == '0' || $mem_status == '1') {
+        // ผู้ดูแลระบบ และ พนักงานคีย์ข้อมูล: เงินออมหุ้น/เดือน ต้องเป็น 0
+        $mem_stock_savings = 0;
+    } else {
+        $mem_stock_savings = isset($_POST["mem_stock_savings"]) ? (int)$_POST["mem_stock_savings"] : 0;
+        if ($mem_stock_savings < $min_stock) {
+            $mem_stock_savings = $min_stock;
+        }
+        if ($max_stock > 0 && $mem_stock_savings > $max_stock) {
+            $mem_stock_savings = $max_stock;
+        }
+        if ($mem_stock_savings < 0) {
+            $mem_stock_savings = 0;
+        }
+    }
+
     $mem_register_date    = date("Y-m-d H:i:s");
 
     // ตรวจสอบข้อมูลซ้ำ (ID หรือ Username)
@@ -47,10 +72,10 @@ if ($member == "add"){
     } else {
         $sql = "INSERT INTO member (
             mem_id, mem_username, mem_name, mem_address, mem_phone, 
-            mem_status, mem_password, mem_common_credit, mem_emergency_credit, mem_register_date
+            mem_status, mem_password, mem_stock_savings, mem_common_credit, mem_emergency_credit, mem_register_date
         ) VALUES (
             '$mem_id', '$mem_username', '$mem_name', '$mem_address', '$mem_phone', 
-            $mem_status, '$mem_password', $mem_common_credit, $mem_emergency_credit, '$mem_register_date'
+            $mem_status, '$mem_password', $mem_stock_savings, $mem_common_credit, $mem_emergency_credit, '$mem_register_date'
         )";
         $result = mysqli_query($condb, $sql) or die (mysqli_error($condb));
     }
@@ -73,9 +98,42 @@ elseif ($member == "edit"){
     $mem_phone  = mysqli_real_escape_string($condb, $_POST["mem_phone"]);
     $mem_address = mysqli_real_escape_string($condb, $_POST["mem_address"]);
 
-    // วงเงินกู้ที่อาจมีการแก้ไข
-    $common_credit = mysqli_real_escape_string($condb, $_POST["common_credit"]);
-    $emergency_credit = mysqli_real_escape_string($condb, $_POST["emergency_credit"]);
+    // วงเงินกู้: Admin(0) และ พนักงานคีย์ข้อมูล(1) ต้องเป็น 0; ครู(2)/เจ้าหน้าที่(3) ใช้ค่าจากฟอร์มแต่ไม่เกินที่ตั้งในระบบ
+    if ($mem_status == '0' || $mem_status == '1') {
+        $common_credit = 0;
+        $emergency_credit = 0;
+        $mem_stock_savings = 0;
+    } else {
+        $rs_sys = mysqli_query($condb, "SELECT st_max_amount_common_teacher, st_max_amount_common_officer, st_max_amount_emergency, st_min_stock_savings, st_max_stock_savings FROM `system` WHERE st_id = 1");
+        $row_sys = $rs_sys ? mysqli_fetch_assoc($rs_sys) : null;
+        $max_common = 0;
+        $max_emergency = isset($row_sys['st_max_amount_emergency']) ? (int)$row_sys['st_max_amount_emergency'] : 0;
+        if ($mem_status == '2') {
+            $max_common = isset($row_sys['st_max_amount_common_teacher']) ? (int)$row_sys['st_max_amount_common_teacher'] : 0;
+        } elseif ($mem_status == '3') {
+            $max_common = isset($row_sys['st_max_amount_common_officer']) ? (int)$row_sys['st_max_amount_common_officer'] : 0;
+        }
+        $common_credit = (int) $_POST["common_credit"];
+        $emergency_credit = (int) $_POST["emergency_credit"];
+        if ($common_credit > $max_common) $common_credit = $max_common;
+        if ($emergency_credit > $max_emergency) $emergency_credit = $max_emergency;
+        if ($common_credit < 0) $common_credit = 0;
+        if ($emergency_credit < 0) $emergency_credit = 0;
+
+        // เงินออมหุ้น/เดือน: ครู/เจ้าหน้าที่ ใช้ค่าจากฟอร์มและจำกัดตามที่ตั้งในระบบ
+        $min_stock = isset($row_sys['st_min_stock_savings']) ? (int)$row_sys['st_min_stock_savings'] : 0;
+        $max_stock = isset($row_sys['st_max_stock_savings']) ? (int)$row_sys['st_max_stock_savings'] : 0;
+        $mem_stock_savings = isset($_POST["mem_stock_savings"]) ? (int)$_POST["mem_stock_savings"] : 0;
+        if ($mem_stock_savings < $min_stock) {
+            $mem_stock_savings = $min_stock;
+        }
+        if ($max_stock > 0 && $mem_stock_savings > $max_stock) {
+            $mem_stock_savings = $max_stock;
+        }
+        if ($mem_stock_savings < 0) {
+            $mem_stock_savings = 0;
+        }
+    }
 
     // จัดการรหัสผ่านแบบใหม่
     $password_update = "";
@@ -90,6 +148,7 @@ elseif ($member == "edit"){
             mem_name='$mem_name', 
             mem_phone='$mem_phone',
             mem_address='$mem_address',
+            mem_stock_savings='$mem_stock_savings',
             mem_common_credit='$common_credit',
             mem_emergency_credit='$emergency_credit'
             $password_update

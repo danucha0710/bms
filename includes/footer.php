@@ -10,20 +10,14 @@
 if(isset($condb)){ mysqli_close($condb); }
 ?>
 
-<div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title" id="statusModalLabel">
-            <i class="fas fa-check-circle"></i> สำเร็จ
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Toast แจ้งเตือนมุมขวาบน -->
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 1080; pointer-events: none;">
+  <div id="statusToast" class="toast text-bg-success border-0 shadow-sm" role="alert" aria-live="assertive" aria-atomic="true" style="pointer-events: auto;">
+    <div class="d-flex align-items-center">
+      <div class="toast-body d-flex align-items-center gap-2" id="statusToastMessage">
+        <!-- ข้อความแจ้งเตือนจะถูกเติมด้วย JS -->
       </div>
-      <div class="modal-body text-center py-4 fs-5" id="modalMessage">
-        </div>
-      <div class="modal-footer justify-content-center">
-        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">ตกลง</button>
-      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
     </div>
   </div>
 </div>
@@ -90,37 +84,30 @@ $alerts = [
     'error' => 'เกิดข้อผิดพลาด โปรดลองใหม่อีกครั้ง'
 ];
 
-// ตรวจสอบ $_GET เพื่อสั่งเปิด Modal
+// ตรวจสอบ $_GET เพื่อสั่งแสดง Toast
 foreach ($alerts as $key => $message) {
     if(isset($_GET[$key])){
         // กำหนดสีและไอคอน (ถ้าเป็น error ให้เป็นสีแดง)
-        $headerClass = ($key == 'error') ? 'bg-danger' : 'bg-success';
+        $bgClass = ($key == 'error') ? 'text-bg-danger' : 'text-bg-success';
         $iconClass = ($key == 'error') ? 'fa-times-circle' : 'fa-check-circle';
-        $titleText = ($key == 'error') ? 'ผิดพลาด' : 'สำเร็จ';
 ?>
     <script>
+        // แสดง Toast แจ้งเตือนมุมขวาบน ด้วย Bootstrap 5
         document.addEventListener("DOMContentLoaded", function() {
-            // 1. ดึง Element Modal มา
-            var myModalEl = document.getElementById('statusModal');
-            
-            // ตรวจสอบว่ามี element จริงไหมก่อนเรียกใช้ Bootstrap Modal
-            if(myModalEl) {
-                var myModal = new bootstrap.Modal(myModalEl);
-                
-                // 2. ใส่ข้อความ
-                var msgEl = document.getElementById('modalMessage');
-                if(msgEl) msgEl.innerHTML = '<?php echo $message; ?>';
-                
-                // ปรับสี Header และ Title ตามสถานะ
-                var modalHeader = myModalEl.querySelector('.modal-header');
-                var modalTitle = myModalEl.querySelector('.modal-title');
-                
-                if(modalHeader) modalHeader.className = 'modal-header <?php echo $headerClass; ?> text-white';
-                if(modalTitle) modalTitle.innerHTML = '<i class="fas <?php echo $iconClass; ?>"></i> <?php echo $titleText; ?>';
+            var toastEl = document.getElementById('statusToast');
+            var bodyEl = document.getElementById('statusToastMessage');
+            if (!toastEl || !bodyEl || typeof bootstrap === 'undefined') return;
 
-                // 3. แสดงผล Modal
-                myModal.show();
-            }
+            // ปรับสีพื้นหลังตามสถานะ (สำเร็จ / ผิดพลาด)
+            toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+            toastEl.classList.add('<?php echo $bgClass; ?>');
+
+            // ใส่ข้อความ + ไอคอน
+            bodyEl.innerHTML = '<i class="fas <?php echo $iconClass; ?>"></i> <?php echo $message; ?>';
+
+            // แสดง Toast (หายไปเองใน ~3 วินาที)
+            var toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+            toast.show();
         });
     </script>
 <?php 

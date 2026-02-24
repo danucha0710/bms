@@ -53,12 +53,6 @@ function getStatusBadge($s) {
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
-    <div class="row mb-4">
-      <div class="col-12">
-        <h4 class="mb-1"><i class="fas fa-home me-2 text-primary"></i> หน้าแรก</h4>
-        <p class="text-muted mb-0">สวัสดีครับ <?php echo htmlspecialchars($member['mem_name']); ?></p>
-      </div>
-    </div>
 
     <div class="row g-3 mb-4">
       <div class="col-md-6 col-xl-3">
@@ -139,8 +133,8 @@ function getStatusBadge($s) {
               <?php while ($row = mysqli_fetch_assoc($rs_br)): 
                 $g1 = array_key_exists('guarantor_1_approve', $row) ? (int)$row['guarantor_1_approve'] : -1;
                 $g2 = array_key_exists('guarantor_2_approve', $row) ? (int)$row['guarantor_2_approve'] : -1;
-                $g1txt = $g1 === 0 ? 'รอ' : ($g1 === 1 ? 'อนุมัติ' : ($g1 === 2 ? 'ไม่อนุมัติ' : '-'));
-                $g2txt = $g2 === 0 ? 'รอ' : ($g2 === 1 ? 'อนุมัติ' : ($g2 === 2 ? 'ไม่อนุมัติ' : '-'));
+                $g1txt = $g1 === 0 ? 'รอยืนยัน' : ($g1 === 1 ? 'อนุมัติ' : ($g1 === 2 ? 'ไม่อนุมัติ' : '-'));
+                $g2txt = $g2 === 0 ? 'รอยืนยัน' : ($g2 === 1 ? 'อนุมัติ' : ($g2 === 2 ? 'ไม่อนุมัติ' : '-'));
               ?>
               <tr>
                 <td class="text-center"><?php echo (int)$row['br_id']; ?></td>

@@ -59,6 +59,24 @@ $value = mysqli_fetch_array($result, MYSQLI_ASSOC);
                                     </div>
                                 </div>
                             </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินออมหุ้นขั้นต่ำ</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_min_stock_savings" value="<?php echo isset($value['st_min_stock_savings']) ? (int)$value['st_min_stock_savings'] : 0; ?>">
+                                        <span class="input-group-text">บาท</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">เงินออมหุ้นสูงสุด</label>
+                                <div class="col-sm-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" min="0" step="1" name="st_max_stock_savings" value="<?php echo isset($value['st_max_stock_savings']) ? (int)$value['st_max_stock_savings'] : 0; ?>">
+                                        <span class="input-group-text">บาท</span>
+                                    </div>
+                                </div>
+                            </div>
 
                             <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">2. จำนวนเงินต้น</h6>
                             <div class="row mb-3">

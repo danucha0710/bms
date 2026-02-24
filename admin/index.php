@@ -86,9 +86,8 @@ for ($i = 5; $i >= 0; $i--) {
 ?>
 
 <section class="content">
-  <div class="container-fluid py-4">
+  <div class="container-fluid">
     <div class="row">
-      
       <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
         <div class="card shadow-sm border-0">
           <div class="card-header p-3 pt-2">
@@ -163,8 +162,8 @@ for ($i = 5; $i >= 0; $i--) {
 
     </div>
     
-    <div class="row mt-5">
-      <div class="col-lg-6 col-md-6 mt-4 mb-4">
+    <div class="row">
+      <div class="col-lg-6 col-md-6 mb-4">
         <div class="card z-index-2 shadow-sm">
           <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2 bg-transparent">
             <div class="bg-gradient-primary shadow-primary border-radius-lg py-3 pe-1">
@@ -184,7 +183,7 @@ for ($i = 5; $i >= 0; $i--) {
         </div>
       </div>
       
-      <div class="col-lg-6 col-md-6 mt-4 mb-4">
+      <div class="col-lg-6 col-md-6 mb-4">
         <div class="card z-index-2 shadow-sm">
           <div class="card-header p-0 position-relative mt-n4 mx-3 z-index-2 bg-transparent">
             <div class="bg-gradient-success shadow-success border-radius-lg py-3 pe-1">
