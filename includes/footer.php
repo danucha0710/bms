@@ -59,6 +59,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
                     "previous": "ก่อนหน้า" 
                 },
                 "zeroRecords": "ไม่พบข้อมูล",
+                "emptyTable": "ไม่มีข้อมูลในตาราง",
                 "infoEmpty": "ไม่มีข้อมูลแสดง",
                 "infoFiltered": "(กรองจากทั้งหมด _MAX_ รายการ)"
             }

@@ -19,13 +19,7 @@
         <span class="nav-link text-secondary">
             ยินดีต้อนรับ: <?php echo htmlspecialchars($_SESSION['mem_name']); ?>
         </span>
-      </li>
-
-      <li class="nav-item">
-        <a href="../logout.php" class="nav-link text-danger" onclick="return confirm('ยืนยันการออกจากระบบ?');">
-          <i class="fas fa-power-off"></i> ออกจากระบบ
-        </a>
-      </li>
+      </li>image.png
     </ul>
 
   </div>

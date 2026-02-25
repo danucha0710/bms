@@ -155,7 +155,47 @@ elseif ($borrow == "approve"){
 		$br_months_pay = (int)$br_months_pay;
 		$br_status = (int)$br_status;
 		$br_interest_rate = isset($br_interest_rate) ? (float)$br_interest_rate : 0;
-		
+
+		// ดึงข้อมูลปัจจุบันจาก borrow_request ก่อน (ยังไม่อัปเดต) เพื่อตรวจสอบเงื่อนไข
+		$sql1 = "SELECT * FROM borrow_request
+		INNER JOIN member ON borrow_request.mem_id=member.mem_id
+		WHERE borrow_request.br_id = $br_id";
+		$result1 = mysqli_query($condb, $sql1);
+		$row = mysqli_fetch_array($result1, MYSQLI_ASSOC);
+		if (!$row) {
+			mysqli_close($condb);
+			ob_end_clean();
+			echo "<script type='text/javascript'>alert('ไม่พบข้อมูลคำขอ'); window.location='borrow_request.php';</script>";
+			exit;
+		}
+
+		// ตรวจสอบเงื่อนไขก่อนอนุมัติ: ค้ำบุคคล = ต้อง guarantor_1_approve=1 และ guarantor_2_approve=1
+		$br_type = (int)$row['br_type'];
+		$guarantee_type_row = (int)$row['guarantee_type'];
+		$g1_approve = isset($row['guarantor_1_approve']) ? (int)$row['guarantor_1_approve'] : 0;
+		$g2_approve = isset($row['guarantor_2_approve']) ? (int)$row['guarantor_2_approve'] : 0;
+		$mem_amount_stock = isset($row['mem_amount_stock']) ? (int)$row['mem_amount_stock'] : 0;
+		$original_br_amount = (float)$row['br_amount'];
+
+		$canApprove = false;
+		if ($guarantee_type_row === 1) {
+			// ค้ำประกันด้วยบุคคล: อนุมัติได้เฉพาะเมื่อผู้ค้ำทั้ง 2 คนอนุมัติแล้ว
+			$canApprove = ($g1_approve === 1 && $g2_approve === 1);
+		} elseif ($guarantee_type_row === 2) {
+			$canApprove = ($mem_amount_stock > $original_br_amount);
+		}
+
+		if (!$canApprove) {
+			mysqli_close($condb);
+			ob_end_clean();
+			echo "<script type='text/javascript'>";
+			echo "alert('ไม่สามารถอนุมัติได้: กรณีค้ำบุคคลต้องมีผู้ค้ำทั้ง 2 คนอนุมัติแล้ว (ผู้ค้ำ 1 และผู้ค้ำ 2) หรือกรณีค้ำด้วยหุ้นต้องมีจำนวนหุ้นมากกว่าวงเงินกู้');";
+			echo "window.location = 'approve.php?br_id=" . (int)$br_id . "';";
+			echo "</script>";
+			exit;
+		}
+
+		// ผ่านเงื่อนไขแล้ว ค่อยอัปเดต br_status = 1
 		$sql = "UPDATE borrow_request SET 
 		br_amount = $br_amount,
 		br_months_pay = $br_months_pay,
@@ -164,45 +204,11 @@ elseif ($borrow == "approve"){
 		br_interest_rate = $br_interest_rate,
 		br_date_approve = '$date'
 		WHERE borrow_request.br_id = $br_id";
-
 		$result = mysqli_query($condb, $sql) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
 
-		$sql1 = "SELECT * FROM borrow_request
-		INNER JOIN member ON borrow_request.mem_id=member.mem_id
-		WHERE borrow_request.br_id = $br_id";
+		// ดึงข้อมูลล่าสุดหลังอัปเดต (สำหรับคำนวณงวดและอัปเดตวงเงิน)
 		$result1 = mysqli_query($condb, $sql1);
 		$row = mysqli_fetch_array($result1, MYSQLI_ASSOC);
-
-		// ตรวจสอบเงื่อนไขก่อนอนุมัติ: ต้องมีผู้ค้ำทั้ง 2 คนอนุมัติแล้ว หรือใช้หุ้นค้ำโดยหุ้นเพียงพอ
-		$br_type = (int)$row['br_type'];               // 1=สามัญ, 2=ฉุกเฉิน
-		$guarantee_type_row = (int)$row['guarantee_type']; // 1=บุคคล, 2=หุ้น
-		$g1_approve = isset($row['guarantor_1_approve']) ? (int)$row['guarantor_1_approve'] : 0;
-		$g2_approve = isset($row['guarantor_2_approve']) ? (int)$row['guarantor_2_approve'] : 0;
-		$mem_amount_stock = isset($row['mem_amount_stock']) ? (int)$row['mem_amount_stock'] : 0;
-
-		$original_br_amount = (float)$row['br_amount'];
-
-		$hasGuarantorsOk = ($g1_approve === 1 && $g2_approve === 1);
-		$hasStockEnough = ($mem_amount_stock > $original_br_amount);
-
-		$canApprove = false;
-		if ($guarantee_type_row === 1) { // ใช้บุคคลค้ำประกัน
-			// ต้องมีผู้ค้ำทั้ง 2 คนกดอนุมัติก่อนเท่านั้น
-			$canApprove = $hasGuarantorsOk;
-		} elseif ($guarantee_type_row === 2) { // ใช้หุ้นค้ำประกัน
-			// ต้องมีจำนวนหุ้นมากกว่าวงเงินที่ต้องการกู้
-			$canApprove = $hasStockEnough;
-		}
-
-		if (!$canApprove) {
-			mysqli_close($condb);
-			ob_end_clean();
-			echo "<script type='text/javascript'>";
-			echo "alert('ไม่สามารถอนุมัติได้: ต้องมีผู้ค้ำทั้ง 2 คนอนุมัติ หรือจำนวนหุ้นมากกว่าวงเงินกู้ที่ขอ');";
-			echo "window.location = 'approve.php?br_id=" . (int)$br_id . "';";
-			echo "</script>";
-			exit;
-		}
 
 		$sql2 = "SELECT * FROM system";
 		$result2 = mysqli_query($condb, $sql2);
@@ -239,6 +245,7 @@ elseif ($borrow == "approve"){
 				$br_amount -= $principal_this;
 			}
 			$round_pay = $i . '/' . $br_months_pay;
+			// i เริ่มที่ 1 → งวดแรกคือเดือนถัดไป (month_now + 1)
 			$month = $month_now + $i;
 			$year = $year_now;
 			while ($month > 12) { $month -= 12; $year++; }
@@ -276,6 +283,14 @@ elseif ($borrow == "approve"){
 			if (!empty($sql_credit)) {
 				$update_credit_ok = mysqli_query($condb, $sql_credit);
 			}
+		}
+
+		// ถ้าเป็นการรีเซ็ทสัญญา: ยกเลิกงวดที่เหลือของสัญญาเดิมทั้งหมด
+		$br_is_reset_flag    = isset($row['br_is_reset'])    ? (int)$row['br_is_reset']    : 0;
+		$br_reset_br_id_flag = isset($row['br_reset_br_id']) ? (int)$row['br_reset_br_id'] : 0;
+		if ($br_is_reset_flag == 1 && $br_reset_br_id_flag > 0) {
+			// กำหนด bw_status = 2 (ยกเลิก/รีเซ็ท) สำหรับงวดที่ยังไม่จ่ายของสัญญาเดิม
+			mysqli_query($condb, "UPDATE borrowing SET bw_status = 2 WHERE br_id = $br_reset_br_id_flag AND bw_status = 0");
 		}
 
 		if($result and $result1 and $update_credit_ok){

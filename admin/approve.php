@@ -78,10 +78,18 @@ function getGuaranteeText($type){
               </div>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label fw-bold">ประเภทเงินกู้</label>
-                <div class="col-sm-9">
+                <div class="col-sm-9 d-flex align-items-center gap-2">
                    <span class="badge <?php echo ($value['br_type']==1)?'bg-primary':'bg-danger'; ?> fs-6">
                        <?php echo getTypeText($value['br_type']); ?>
                    </span>
+                   <?php if (!empty($value['br_is_reset']) && (int)$value['br_is_reset'] === 1): ?>
+                   <span class="badge bg-warning text-dark fs-6">
+                       <i class="fas fa-sync-alt me-1"></i> รีเซ็ทสัญญา
+                   </span>
+                   <?php if (!empty($value['br_reset_br_id'])): ?>
+                   <span class="text-muted small">(ยกเลิกงวดที่เหลือของสัญญา #<?php echo (int)$value['br_reset_br_id']; ?> เมื่ออนุมัติ)</span>
+                   <?php endif; ?>
+                   <?php endif; ?>
                 </div>
               </div>
               
@@ -137,24 +145,42 @@ function getGuaranteeText($type){
                 </div>
               </div>
 
+              <?php 
+              $g1_approve = isset($value['guarantor_1_approve']) ? (int)$value['guarantor_1_approve'] : 0;
+              $g2_approve = isset($value['guarantor_2_approve']) ? (int)$value['guarantor_2_approve'] : 0;
+              $both_guarantors_ok = ($value['guarantee_type'] == 1) ? ($g1_approve === 1 && $g2_approve === 1) : true;
+              ?>
               <?php if($value['guarantee_type'] == 1){ ?>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label fw-bold">ผู้ค้ำประกัน</label>
                 <div class="col-sm-9">
                   <ul class="list-group">
-                    <li class="list-group-item">
-                      1. <?php 
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <span>1. <?php 
                         $g1Name = $value['guarantor1_name'] ?? '';
                         echo $g1Name !== '' ? htmlspecialchars($g1Name) : '-';
+                      ?></span>
+                      <?php 
+                        if ($g1_approve === 1) echo '<span class="badge bg-success">อนุมัติแล้ว</span>';
+                        elseif ($g1_approve === 2) echo '<span class="badge bg-danger">ไม่อนุมัติ</span>';
+                        else echo '<span class="badge bg-secondary">รอ</span>';
                       ?>
                     </li>
-                    <li class="list-group-item">
-                      2. <?php 
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <span>2. <?php 
                         $g2Name = $value['guarantor2_name'] ?? '';
                         echo $g2Name !== '' ? htmlspecialchars($g2Name) : '-';
+                      ?></span>
+                      <?php 
+                        if ($g2_approve === 1) echo '<span class="badge bg-success">อนุมัติแล้ว</span>';
+                        elseif ($g2_approve === 2) echo '<span class="badge bg-danger">ไม่อนุมัติ</span>';
+                        else echo '<span class="badge bg-secondary">รอ</span>';
                       ?>
                     </li>
                   </ul>
+                  <?php if (!$both_guarantors_ok && $value['br_status'] == 0): ?>
+                  <p class="text-warning small mb-0 mt-2"><i class="fas fa-exclamation-triangle"></i> ระบบจะอนุมัติคำขอนี้ได้เมื่อผู้ค้ำทั้ง 2 คนกดอนุมัติแล้วเท่านั้น</p>
+                  <?php endif; ?>
                 </div>
               </div>
               <?php } ?>
@@ -175,8 +201,8 @@ function getGuaranteeText($type){
                         <label class="col-sm-3 col-form-label fw-bold">ผลการพิจารณา</label>
                         <div class="col-sm-9">
                             <div class="btn-group" role="group">
-                                <input type="radio" class="btn-check" name="br_status" id="status_approve" value="1" onchange="toggleReason(1)" required>
-                                <label class="btn btn-outline-success" for="status_approve">
+                                <input type="radio" class="btn-check" name="br_status" id="status_approve" value="1" onchange="toggleReason(1)" <?php echo ($value['guarantee_type'] == 1 && !$both_guarantors_ok) ? 'disabled' : ''; ?> required>
+                                <label class="btn btn-outline-success <?php echo ($value['guarantee_type'] == 1 && !$both_guarantors_ok) ? 'disabled' : ''; ?>" for="status_approve" title="<?php echo ($value['guarantee_type'] == 1 && !$both_guarantors_ok) ? 'ต้องรอผู้ค้ำทั้ง 2 คนอนุมัติก่อน' : ''; ?>">
                                     <i class="fas fa-check-circle"></i> อนุมัติ
                                 </label>
 
@@ -185,6 +211,9 @@ function getGuaranteeText($type){
                                     <i class="fas fa-times-circle"></i> ไม่อนุมัติ
                                 </label>
                             </div>
+                            <?php if ($value['guarantee_type'] == 1 && !$both_guarantors_ok): ?>
+                            <p class="text-muted small mb-0 mt-1">ปุ่มอนุมัติจะเปิดเมื่อผู้ค้ำทั้ง 2 คนกดอนุมัติแล้ว</p>
+                            <?php endif; ?>
                         </div>
                     </div>
 

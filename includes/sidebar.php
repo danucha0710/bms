@@ -43,15 +43,12 @@
             <?php } ?>
 
             <li class="px-3 pt-3 pb-1 text-uppercase text-muted" style="font-size: 0.7rem; letter-spacing: 1px;">Reports</li>
-            
-            <li class="<?php echo ($menu == 'report_d') ? 'active' : ''; ?>">
-                <a href="report_d.php"><i class="fas fa-calendar-day me-2 text-info"></i> รายงานรายวัน</a>
+          
+            <li class="<?php echo ($menu == 'receipt') ? 'active' : ''; ?>">
+                <a href="receipt.php"><i class="fas fa-receipt me-2 text-info"></i> พิมพ์ใบเสร็จผู้กู้</a>
             </li>
-            <li class="<?php echo ($menu == 'report_m') ? 'active' : ''; ?>">
-                <a href="report_m.php"><i class="fas fa-calendar-alt me-2 text-warning"></i> รายงานรายเดือน</a>
-            </li>
-            <li class="<?php echo ($menu == 'report_y') ? 'active' : ''; ?>">
-                <a href="report_y.php"><i class="fas fa-table me-2 text-success"></i> รายงานรายปี</a>
+            <li class="<?php echo ($menu == 'installments') ? 'active' : ''; ?>">
+                <a href="installments.php"><i class="fas fa-list-ol me-2 text-warning"></i> รายการงวดทั้งหมด</a>
             </li>
 
         <?php } else { ?>

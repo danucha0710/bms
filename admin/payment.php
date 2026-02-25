@@ -13,22 +13,53 @@ $bw_id = isset($_GET['bw_id']) ? (int)$_GET['bw_id'] : 0;
 
 // บันทึกการชำระเงิน (POST) — ต้องทำก่อนส่ง HTML ใดๆ เพื่อให้ redirect ได้
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_pay']) && $bw_id > 0) {
+    $bw_id_safe = (int)$bw_id;
+    // ดึงข้อมูลงวด + ประเภทเงินกู้ + mem_id ก่อนอัปเดต
+    $qPay = "SELECT b.bw_amount, b.mem_id, b.bw_status, r.br_type
+             FROM borrowing b
+             INNER JOIN borrow_request r ON b.br_id = r.br_id
+             WHERE b.bw_id = $bw_id_safe";
+    $resPay = mysqli_query($condb, $qPay);
+    $payRow = mysqli_fetch_assoc($resPay);
+
+    if (!$payRow || (int)$payRow['bw_status'] === 1) {
+        header("Location: mustpay.php?error=already");
+        exit();
+    }
+
     $paid_input = isset($_POST['bw_date_paid']) && trim($_POST['bw_date_paid']) !== ''
         ? trim($_POST['bw_date_paid'])
         : date('Y-m-d\TH:i');
-    // ดึงเฉพาะวันที่ (Y-m-d) สำหรับ bw_date_pay
     if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $paid_input, $m)) {
         $bw_date_pay_value = mysqli_real_escape_string($condb, $m[1]);
     } else {
         $bw_date_pay_value = date('Y-m-d');
     }
-    $bw_id_safe = (int)$bw_id;
+
     $sql = "UPDATE borrowing SET bw_status = 1, bw_date_pay = '$bw_date_pay_value' WHERE bw_id = $bw_id_safe";
-    if (mysqli_query($condb, $sql)) {
+    if (!mysqli_query($condb, $sql)) {
+        $payment_error = mysqli_error($condb);
+    } else {
+        // นำยอดชำระไปเพิ่มวงเงินสมาชิก ตามประเภทเงินกู้
+        $pay_amount = (float)$payRow['bw_amount'];
+        $mem_id_credit = mysqli_real_escape_string($condb, $payRow['mem_id']);
+        $br_type = (int)$payRow['br_type'];
+
+        if ($pay_amount > 0 && $mem_id_credit !== '') {
+            if ($br_type === 1) {
+                $sql_credit = "UPDATE member SET mem_common_credit = mem_common_credit + $pay_amount WHERE mem_id = '$mem_id_credit'";
+            } else {
+                $sql_credit = "UPDATE member SET mem_emergency_credit = mem_emergency_credit + $pay_amount WHERE mem_id = '$mem_id_credit'";
+            }
+            @mysqli_query($condb, $sql_credit);
+
+            // เพิ่มเงินออมหุ้น/เดือน เข้าในยอดหุ้นสะสม
+            $sql_stock = "UPDATE member SET mem_amount_stock = mem_amount_stock + mem_stock_savings WHERE mem_id = '$mem_id_credit'";
+            @mysqli_query($condb, $sql_stock);
+        }
         header("Location: mustpay.php?save_ok=1");
         exit();
     }
-    $payment_error = mysqli_error($condb);
 }
 
 $menu = "mustpay";

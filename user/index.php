@@ -120,11 +120,11 @@ function getStatusBadge($s) {
           <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th class="text-center">เลขที่</th>
+                <th class="text-center">เลขที่คำขอกู้</th>
                 <th>ประเภท</th>
                 <th class="text-end">ยอดกู้ (บาท)</th>
-                <th class="text-center">ผ่อน (เดือน)</th>
-                <th class="text-center">ผู้ค้ำ 1/2</th>
+                <th class="text-center">งวดผ่อน (เดือน)</th>
+                <th class="text-center">ผู้ค้ำประกัน</th>
                 <th class="text-center">สถานะ</th>
                 <th class="text-center">วันที่ยื่น</th>
               </tr>
