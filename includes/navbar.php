@@ -19,7 +19,7 @@
         <span class="nav-link text-secondary">
             ยินดีต้อนรับ: <?php echo htmlspecialchars($_SESSION['mem_name']); ?>
         </span>
-      </li>image.png
+      </li>
     </ul>
 
   </div>

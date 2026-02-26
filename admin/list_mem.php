@@ -364,6 +364,17 @@ function getStatusName($status_id) {
                       value="<?php echo isset($row['mem_stock_savings']) ? (int)$row['mem_stock_savings'] : 0; ?>"
                     >
                  </div>
+                 <div class="col-md-6">
+                   <label class="form-label small">จำนวนเงินหุ้น (บาท)</label>
+                   <input
+                     type="number"
+                     class="form-control edit-amount-stock"
+                     name="mem_amount_stock"
+                     min="0"
+                     step="1"
+                     value="<?php echo isset($row['mem_amount_stock']) ? (int)$row['mem_amount_stock'] : 0; ?>"
+                   >
+                 </div>
               </div>
               <div class="row mb-3">
                  <div class="col-md-6">
@@ -400,6 +411,7 @@ function getStatusName($status_id) {
         var commonInp = modal.querySelector('.edit-common-credit');
         var emergencyInp = modal.querySelector('.edit-emergency-credit');
         var stockInp = modal.querySelector('.edit-stock-savings');
+        var amountStockInp = modal.querySelector('.edit-amount-stock');
         var commonHint = modal.querySelector('.edit-max-common-hint');
         var emergencyHint = modal.querySelector('.edit-max-emergency-hint');
         if (!sel || !commonInp || !emergencyInp) return;
@@ -434,6 +446,11 @@ function getStatusName($status_id) {
               stockInp.removeAttribute('min');
               stockInp.removeAttribute('max');
             }
+            if (amountStockInp) {
+              amountStockInp.value = 0;
+              amountStockInp.readOnly = true;
+              amountStockInp.classList.add('bg-light');
+            }
           } else {
             commonInp.readOnly = false;
             emergencyInp.readOnly = false;
@@ -457,6 +474,10 @@ function getStatusName($status_id) {
               } else if (sysMaxStock > 0 && sv > sysMaxStock) {
                 stockInp.value = sysMaxStock;
               }
+            }
+            if (amountStockInp) {
+              amountStockInp.readOnly = false;
+              amountStockInp.classList.remove('bg-light');
             }
           }
         }

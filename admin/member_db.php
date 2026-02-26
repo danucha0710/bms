@@ -103,6 +103,7 @@ elseif ($member == "edit"){
         $common_credit = 0;
         $emergency_credit = 0;
         $mem_stock_savings = 0;
+        $mem_amount_stock = 0;
     } else {
         $rs_sys = mysqli_query($condb, "SELECT st_max_amount_common_teacher, st_max_amount_common_officer, st_max_amount_emergency, st_min_stock_savings, st_max_stock_savings FROM `system` WHERE st_id = 1");
         $row_sys = $rs_sys ? mysqli_fetch_assoc($rs_sys) : null;
@@ -133,6 +134,9 @@ elseif ($member == "edit"){
         if ($mem_stock_savings < 0) {
             $mem_stock_savings = 0;
         }
+
+        $mem_amount_stock = isset($_POST["mem_amount_stock"]) ? (int)$_POST["mem_amount_stock"] : 0;
+        if ($mem_amount_stock < 0) $mem_amount_stock = 0;
     }
 
     // จัดการรหัสผ่านแบบใหม่
@@ -149,6 +153,7 @@ elseif ($member == "edit"){
             mem_phone='$mem_phone',
             mem_address='$mem_address',
             mem_stock_savings='$mem_stock_savings',
+            mem_amount_stock='$mem_amount_stock',
             mem_common_credit='$common_credit',
             mem_emergency_credit='$emergency_credit'
             $password_update
