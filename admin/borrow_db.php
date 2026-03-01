@@ -39,6 +39,55 @@ if ($borrow == "add"){
 	$br_details = mysqli_real_escape_string($condb,$_POST["br_details"]);
 	$date = date("Y-m-d H:i:s");
 	$br_interest_rate = isset($_POST["br_interest_rate"]) && $_POST["br_interest_rate"] !== '' ? (float)$_POST["br_interest_rate"] : 0;
+	$br_is_reset = isset($_POST["br_is_reset"]) ? (int)$_POST["br_is_reset"] : 0;
+	$br_reset_br_id = isset($_POST["br_reset_br_id"]) ? (int)$_POST["br_reset_br_id"] : 0;
+
+	if ($br_is_reset == 0) {
+		$sql_chk = "SELECT r.br_id
+					FROM borrow_request r
+					INNER JOIN borrowing b ON r.br_id = b.br_id
+					WHERE r.mem_id = '$mem_id' AND r.br_type = $br_type
+					  AND r.br_status = 1 AND b.bw_status = 0
+					LIMIT 1";
+		$rs_chk = mysqli_query($condb, $sql_chk);
+		if ($rs_chk && mysqli_fetch_assoc($rs_chk)) {
+			mysqli_close($condb);
+			ob_end_clean();
+			echo "<script type='text/javascript'>alert('ไม่สามารถเพิ่มคำขอได้ เนื่องจากมีสัญญากู้ประเภทนี้ที่ยังค้างชำระและไม่ได้เลือก กู้เพิ่ม'); window.location='borrow_request.php';</script>";
+			exit();
+		}
+	} else {
+		if ($br_reset_br_id <= 0) {
+			mysqli_close($condb);
+			ob_end_clean();
+			echo "<script type='text/javascript'>alert('ข้อมูลสัญญาเดิมไม่ถูกต้อง'); window.location='borrow_request.php';</script>";
+			exit();
+		}
+		$sql_vfy = "SELECT r.br_id
+					FROM borrow_request r
+					INNER JOIN borrowing b ON r.br_id = b.br_id
+					WHERE r.br_id = $br_reset_br_id AND r.mem_id = '$mem_id'
+					  AND r.br_status = 1 AND b.bw_status = 0
+					LIMIT 1";
+		$rs_vfy = mysqli_query($condb, $sql_vfy);
+		if (!$rs_vfy || !mysqli_fetch_assoc($rs_vfy)) {
+			mysqli_close($condb);
+			ob_end_clean();
+			echo "<script type='text/javascript'>alert('ไม่พบสัญญากู้เดิมที่ค้างชำระ'); window.location='borrow_request.php';</script>";
+			exit();
+		}
+	}
+
+	// ตรวจสอบว่าคอลัมน์ reset มีอยู่ในตารางหรือไม่
+	$has_reset_col = false;
+	$cr_rst = @mysqli_query($condb, "SHOW COLUMNS FROM borrow_request LIKE 'br_is_reset'");
+	if ($cr_rst && mysqli_fetch_assoc($cr_rst)) $has_reset_col = true;
+	$reset_cols = '';
+	$reset_vals = '';
+	if ($has_reset_col && $br_is_reset == 1 && $br_reset_br_id > 0) {
+		$reset_cols = ', br_is_reset, br_reset_br_id';
+		$reset_vals = ", 1, $br_reset_br_id";
+	}
 
 	// Type casting สำหรับตัวเลขเพื่อป้องกัน SQL Injection
 	$br_type = (int)$br_type;
@@ -60,7 +109,7 @@ if ($borrow == "add"){
 		guarantor_2_approve,
 		br_details,
 		br_interest_rate,
-		br_date_request)
+		br_date_request$reset_cols)
 		VALUES(
 		'$mem_id',
 		$br_type,
@@ -73,7 +122,7 @@ if ($borrow == "add"){
 		0,
 		'$br_details',
 		$br_interest_rate,
-		'$date')";
+		'$date'$reset_vals)";
 		$result = mysqli_query($condb, $sql) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
 
 		// ถ้าบันทึกสำเร็จ ให้สร้างการแจ้งเตือนให้ผู้ค้ำทั้ง 2 คน
@@ -103,7 +152,7 @@ if ($borrow == "add"){
 		guarantee_type,
 		br_details,
 		br_interest_rate,
-		br_date_request)
+		br_date_request$reset_cols)
 		VALUES(
 		'$mem_id',
 		$br_type,
@@ -112,7 +161,7 @@ if ($borrow == "add"){
 		$guarantee_type,
 		'$br_details',
 		$br_interest_rate,
-		'$date')";
+		'$date'$reset_vals)";
 		$result = mysqli_query($condb, $sql) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
 	}
 

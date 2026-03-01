@@ -9,10 +9,16 @@ $menu = "installments";
 include('../includes/header.php');
 
 // ดึงข้อมูลสัญญาที่อนุมัติแล้ว พร้อมจำนวนงวด
-$sql_loans = "SELECT r.br_id, r.mem_id, r.br_type, r.br_amount, r.br_months_pay, m.mem_name
+$sql_loans = "SELECT r.br_id, r.mem_id, r.br_type, r.br_amount, r.br_months_pay, m.mem_name,
+                     COUNT(CASE WHEN b.bw_status = 0 THEN 1 END) AS unpaid_count,
+                     COUNT(CASE WHEN b.bw_status = 1 THEN 1 END) AS paid_count,
+                     COUNT(CASE WHEN b.bw_status = 2 THEN 1 END) AS reset_count,
+                     COUNT(b.bw_id) AS total_count
               FROM borrow_request r
               INNER JOIN member m ON r.mem_id = m.mem_id
+              LEFT JOIN borrowing b ON r.br_id = b.br_id
               WHERE r.br_status = 1
+              GROUP BY r.br_id
               ORDER BY r.br_id DESC";
 $res_loans = mysqli_query($condb, $sql_loans);
 
@@ -94,10 +100,11 @@ if ($res_loans) {
                         <thead class="table-light">
                             <tr>
                                 <th class="text-center" style="width: 10%;">เลขที่คำขอ</th>
-                                <th style="width: 30%;">ชื่อผู้กู้</th>
-                                <th class="text-center" style="width: 20%;">ประเภทเงินกู้</th>
-                                <th class="text-end" style="width: 20%;">จำนวนเงินกู้ (บาท)</th>
+                                <th style="width: 25%;">ชื่อผู้กู้</th>
+                                <th class="text-center" style="width: 15%;">ประเภทเงินกู้</th>
+                                <th class="text-end" style="width: 15%;">จำนวนเงินกู้ (บาท)</th>
                                 <th class="text-center" style="width: 10%;">จำนวนงวด</th>
+                                <th class="text-center" style="width: 15%;">สถานะ</th>
                                 <th class="text-center" style="width: 10%;">จัดการ</th>
                             </tr>
                         </thead>
@@ -112,6 +119,19 @@ if ($res_loans) {
                                 </td>
                                 <td class="text-end fw-bold"><?php echo number_format($ln['br_amount']); ?></td>
                                 <td class="text-center"><?php echo (int)$ln['br_months_pay']; ?></td>
+                                <td class="text-center">
+                                    <?php
+                                    if ((int)$ln['total_count'] == 0) {
+                                        echo '<span class="badge bg-light text-dark border">ไม่มีข้อมูล</span>';
+                                    } elseif ((int)$ln['unpaid_count'] > 0) {
+                                        echo '<span class="badge bg-warning text-dark">ชำระยังไม่ครบ</span>';
+                                    } elseif ((int)$ln['reset_count'] > 0) {
+                                        echo '<span class="badge bg-secondary">ยกเลิก (รีเซ็ท)</span>';
+                                    } else {
+                                        echo '<span class="badge bg-success">ชำระครบแล้ว</span>';
+                                    }
+                                    ?>
+                                </td>
                                 <td class="text-center">
                                     <button type="button"
                                             class="btn btn-info btn-sm btn-view-installments"

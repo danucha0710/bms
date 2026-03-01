@@ -24,6 +24,21 @@ if (!$member) {
     exit();
 }
 
+// นับจำนวนคำขอที่ต้องรับรอง
+$pending_guarantee_count = 0;
+$chk_col = @mysqli_query($condb, "SHOW COLUMNS FROM borrow_request LIKE 'guarantor_1_id'");
+if ($chk_col && mysqli_fetch_assoc($chk_col)) {
+    $sql_guar = "SELECT COUNT(*) as c FROM borrow_request 
+                 WHERE br_status = 0 
+                 AND ((guarantor_1_id = '$mem_id' AND guarantor_1_approve = 0) 
+                   OR (guarantor_2_id = '$mem_id' AND guarantor_2_approve = 0))";
+    $rs_guar = mysqli_query($condb, $sql_guar);
+    if ($rs_guar) {
+        $row_guar = mysqli_fetch_assoc($rs_guar);
+        $pending_guarantee_count = (int)$row_guar['c'];
+    }
+}
+
 // รายการคำขอกู้ของฉัน (ล่าสุด 10 รายการ)
 $sql_br = "SELECT * FROM borrow_request WHERE mem_id = '$mem_id' ORDER BY br_id DESC LIMIT 10";
 $rs_br = mysqli_query($condb, $sql_br);
@@ -100,7 +115,12 @@ function getStatusBadge($s) {
             <div class="card-body d-flex align-items-center justify-content-center text-center">
               <div>
                 <i class="fas fa-user-check text-info fa-3x mb-2"></i>
-                <p class="mb-0 fw-bold text-dark">คำขอที่ต้องรับรอง</p>
+                <p class="mb-0 fw-bold text-dark">
+                  คำขอกู้ที่ต้องรับรอง
+                  <?php if ($pending_guarantee_count > 0): ?>
+                  <span class="badge rounded-pill bg-danger ms-1"><?php echo $pending_guarantee_count; ?></span>
+                  <?php endif; ?>
+                </p>
                 <small class="text-muted">ในฐานะผู้ค้ำประกัน</small>
               </div>
             </div>

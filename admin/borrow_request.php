@@ -38,6 +38,24 @@ $result_system = mysqli_query($condb, $sql_system);
 $row_system = mysqli_fetch_array($result_system, MYSQLI_ASSOC);
 
 // =========================================================
+// 3.5 ดึงข้อมูลสัญญากู้ที่ค้างชำระทั้งหมด เพื่อใช้ตอนเพิ่มคำขอ
+// =========================================================
+$sql_active_all = "SELECT r.mem_id, r.br_type, r.br_id, r.br_amount, r.br_months_pay,
+                         COUNT(CASE WHEN b.bw_status = 0 THEN 1 END) AS unpaid_count
+                  FROM borrow_request r
+                  INNER JOIN borrowing b ON r.br_id = b.br_id
+                  WHERE r.br_status = 1
+                  GROUP BY r.br_id
+                  HAVING unpaid_count > 0";
+$rs_active_all = mysqli_query($condb, $sql_active_all);
+$active_loans_all = [];
+if ($rs_active_all) {
+    while ($row_act = mysqli_fetch_assoc($rs_active_all)) {
+        $active_loans_all[$row_act['mem_id']][$row_act['br_type']] = $row_act;
+    }
+}
+
+// =========================================================
 // 4. Helper Functions (ทำงานเร็วกว่า include ไฟล์ใน loop)
 // =========================================================
 function getBorrowType($type_id) {
@@ -148,7 +166,7 @@ function getBorrowStatus($status_id) {
 <div class="modal fade" id="addModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form action="borrow_db.php" method="POST">
+            <form action="borrow_db.php" method="POST" id="formAddBorrow">
                 <input type="hidden" name="borrow" value="add">
                 <input type="hidden" name="by_id" value="<?php echo htmlspecialchars($_SESSION["mem_id"]); ?>">
                 
@@ -181,6 +199,7 @@ function getBorrowStatus($status_id) {
                     ];
                     window.sysMaxCommonTeacher = <?php echo (int)@$row_system['st_max_amount_common_teacher']; ?>;
                     window.sysMaxCommonOfficer = <?php echo (int)@$row_system['st_max_amount_common_officer']; ?>;
+                    window.activeLoansAll = <?php echo json_encode($active_loans_all, JSON_UNESCAPED_UNICODE); ?>;
                     </script>
 
                     <div class="row mb-3">
@@ -217,6 +236,49 @@ function getBorrowStatus($status_id) {
                                     <input type="number" class="form-control loan-input" id="pay_emergency" name="br_months_pay_emergency" min="1" max="<?php echo $row_system['st_max_months_emergency']; ?>" placeholder="สูงสุด <?php echo $row_system['st_max_months_emergency']; ?>" style="display: none;">
                                     
                                     <span class="input-group-text">งวด (เดือน)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="br_is_reset" id="br_is_reset" value="0">
+                    <input type="hidden" name="br_reset_br_id" id="br_reset_br_id" value="">
+
+                    <div id="reset_section" style="display:none;" class="row mb-3">
+                        <div class="col-sm-9 offset-sm-3">
+                            <div class="alert alert-danger border-danger py-2 mb-0">
+                                <div class="d-flex gap-2">
+                                    <i class="fas fa-sync-alt text-danger mt-1"></i>
+                                    <div class="w-100">
+                                        <strong class="text-danger">คำเตือน: มีสัญญาเงินกู้ประเภทนี้ที่ยังค้างชำระ</strong>
+                                        <p class="mb-1 mt-1 small" id="reset_info_text"></p>
+                                        
+                                        <div id="reset_calc_section" class="p-2 mb-2 bg-white rounded border border-danger small" style="display:none;">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>วงเงินกู้ใหม่:</span>
+                                                <strong id="calc_new_amt">0 บาท</strong>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-1 text-danger">
+                                                <span>หักยอดหนี้คงเหลือเดิม:</span>
+                                                <strong id="calc_old_bal">0 บาท</strong>
+                                            </div>
+                                            <hr class="my-1">
+                                            <div class="d-flex justify-content-between text-success">
+                                                <span>ยอดเงินที่คาดว่าจะได้รับจริง:</span>
+                                                <strong id="calc_receive_amt">0 บาท</strong>
+                                            </div>
+                                            <div id="calc_error" class="text-danger mt-1 fw-bold text-center" style="display:none;">
+                                                <i class="fas fa-exclamation-circle"></i> วงเงินที่กู้ใหม่ต้องมากกว่ายอดหนี้คงเหลือเดิม
+                                            </div>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="confirm_reset">
+                                            <label class="form-check-label fw-semibold text-danger" for="confirm_reset">
+                                                ยืนยันการกู้เพิ่ม (นำยอดเดิมมารวมและคำนวณงวดจ่ายใหม่ เมื่ออนุมัติ)
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -363,6 +425,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     selectedMemStatus = this.dataset.memStatus || null;
                     memberDropdown.style.display = 'none';
                     updateCommonLoanLimit();
+                    if(typeof checkActiveLoanForAdmin === 'function') checkActiveLoanForAdmin();
                 });
                 memberDropdown.appendChild(a);
             });
@@ -417,6 +480,81 @@ document.addEventListener("DOMContentLoaded", function() {
     const payCommon = document.getElementById('pay_common');
     const payEmer = document.getElementById('pay_emergency');
 
+    function checkActiveLoanForAdmin() {
+        var mId = memIdHidden.value;
+        var bType = brType.value;
+        var resetSection = document.getElementById('reset_section');
+        var brIsReset = document.getElementById('br_is_reset');
+        var brResetBrId = document.getElementById('br_reset_br_id');
+        var confirmReset = document.getElementById('confirm_reset');
+        var resetInfo = document.getElementById('reset_info_text');
+        var resetCalcSection = document.getElementById('reset_calc_section');
+
+        if (mId && bType && window.activeLoansAll && window.activeLoansAll[mId] && window.activeLoansAll[mId][bType]) {
+            var activeLoan = window.activeLoansAll[mId][bType];
+            var typeName = bType == '1' ? 'เงินกู้สามัญ' : 'เงินกู้ฉุกเฉิน';
+            var remainingPrincipal = Math.round((parseFloat(activeLoan.br_amount) / parseFloat(activeLoan.br_months_pay)) * parseFloat(activeLoan.unpaid_count));
+            activeLoan.remaining_principal = remainingPrincipal; // Store for calculation
+
+            resetInfo.innerHTML =
+                'สัญญา' + typeName + ' เลขที่ <strong>#' + activeLoan.br_id + '</strong>' +
+                ' ยังเหลืออีก <strong>' + activeLoan.unpaid_count + '/' + activeLoan.br_months_pay + ' งวด</strong> (ยอดหนี้คงเหลือประมาณ <strong>' + Number(remainingPrincipal).toLocaleString('th-TH') + '</strong> บาท)';
+            resetSection.style.display = 'flex';
+            if (resetCalcSection) resetCalcSection.style.display = 'block';
+            brIsReset.value = '1';
+            brResetBrId.value = activeLoan.br_id;
+            if (confirmReset) confirmReset.checked = false;
+            
+            if (typeof updateAdminResetCalc === 'function') updateAdminResetCalc();
+        } else {
+            resetSection.style.display = 'none';
+            if (resetCalcSection) resetCalcSection.style.display = 'none';
+            brIsReset.value = '0';
+            brResetBrId.value = '';
+            if (confirmReset) confirmReset.checked = false;
+        }
+    }
+
+    function updateAdminResetCalc() {
+        var mId = memIdHidden.value;
+        var bType = brType.value;
+        if (!mId || !bType || !window.activeLoansAll || !window.activeLoansAll[mId] || !window.activeLoansAll[mId][bType]) return;
+        
+        var activeLoan = window.activeLoansAll[mId][bType];
+        var oldBal = parseFloat(activeLoan.remaining_principal || 0);
+        var newAmtInput = (bType == '1') ? document.getElementById('amt_common') : document.getElementById('amt_emergency');
+        var newAmt = parseFloat(newAmtInput.value || 0);
+        
+        var calcNewAmt = document.getElementById('calc_new_amt');
+        var calcOldBal = document.getElementById('calc_old_bal');
+        if(calcNewAmt) calcNewAmt.innerText = newAmt.toLocaleString('th-TH') + ' บาท';
+        if(calcOldBal) calcOldBal.innerText = oldBal.toLocaleString('th-TH') + ' บาท';
+        
+        var recvAmt = newAmt - oldBal;
+        var recvEl = document.getElementById('calc_receive_amt');
+        var errEl = document.getElementById('calc_error');
+        var confirmReset = document.getElementById('confirm_reset');
+        
+        if (newAmt > 0 && newAmt <= oldBal) {
+            if(recvEl) {
+                recvEl.innerText = '0 บาท';
+                recvEl.className = 'text-danger';
+            }
+            if(errEl) errEl.style.display = 'block';
+            if(confirmReset) confirmReset.disabled = true;
+        } else {
+            if(recvEl) {
+                recvEl.innerText = (recvAmt > 0 ? recvAmt : 0).toLocaleString('th-TH') + ' บาท';
+                recvEl.className = 'text-success';
+            }
+            if(errEl) errEl.style.display = 'none';
+            if(confirmReset) confirmReset.disabled = false;
+        }
+    }
+
+    if (amtCommon) { amtCommon.addEventListener('input', updateAdminResetCalc); }
+    if (amtEmer) { amtEmer.addEventListener('input', updateAdminResetCalc); }
+
     brType.addEventListener('change', function() {
         loanDetails.style.display = 'block'; // โชว์กล่องรวม
         
@@ -434,6 +572,8 @@ document.addEventListener("DOMContentLoaded", function() {
             amtEmer.style.display = 'block'; amtEmer.required = true;
             payEmer.style.display = 'block'; payEmer.required = true;
         }
+        
+        checkActiveLoanForAdmin();
     });
 
     // 3. Logic สลับประเภทค้ำประกัน
@@ -505,11 +645,13 @@ document.addEventListener("DOMContentLoaded", function() {
     if (guarantor1Search && guarantor1Drop) {
         guarantor1Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search, guarantor1Name, guarantor1Id); });
         guarantor1Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search, guarantor1Name, guarantor1Id); });
+        guarantor1Drop.addEventListener('mousedown', function(e) { e.preventDefault(); });
         guarantor1Search.addEventListener('blur', function() { setTimeout(function() { guarantor1Drop.style.display = 'none'; }, 200); });
     }
     if (guarantor2Search && guarantor2Drop) {
         guarantor2Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search, guarantor2Name, guarantor2Id); });
         guarantor2Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search, guarantor2Name, guarantor2Id); });
+        guarantor2Drop.addEventListener('mousedown', function(e) { e.preventDefault(); });
         guarantor2Search.addEventListener('blur', function() { setTimeout(function() { guarantor2Drop.style.display = 'none'; }, 200); });
     }
 
@@ -535,6 +677,38 @@ document.addEventListener("DOMContentLoaded", function() {
                 document.getElementById('stockResultContent').innerHTML = '<div class="text-danger">เกิดข้อผิดพลาดในการดึงข้อมูล</div>';
             });
     });
+
+    // 5. Logic Validate ฟอร์ม
+    var formAddBorrow = document.getElementById('formAddBorrow');
+    if (formAddBorrow) {
+        formAddBorrow.addEventListener('submit', function(e) {
+            var brIsResetVal = document.getElementById('br_is_reset').value;
+            if (brIsResetVal == '1') {
+                var confirmReset = document.getElementById('confirm_reset');
+                if (!confirmReset || !confirmReset.checked) {
+                    alert('กรุณายืนยันการกู้เพิ่มก่อนดำเนินการต่อ\n(ติ๊กเครื่องหมายยืนยันในกล่องแจ้งเตือนสีแดง)');
+                    e.preventDefault();
+                    return false;
+                }
+            }
+
+            var gType = document.getElementById('guarantee_type').value;
+            if (gType === '1') {
+                var g1Id = document.getElementById('guarantor_1_id').value;
+                var g2Id = document.getElementById('guarantor_2_id').value;
+                if (!g1Id || !g2Id) {
+                    alert('กรุณาเลือกผู้ค้ำประกันให้ครบทั้ง 2 คนจากรายชื่อที่ค้นพบ');
+                    e.preventDefault();
+                    return false;
+                }
+                if (g1Id === g2Id) {
+                    alert('ผู้ค้ำคนที่ 1 และ ผู้ค้ำคนที่ 2 ต้องไม่เป็นบุคคลเดียวกัน');
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+    }
 
 });
 </script>

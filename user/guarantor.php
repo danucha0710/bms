@@ -18,7 +18,7 @@ if ($rc && mysqli_fetch_assoc($rc)) $has_col = true;
 $list = [];
 if ($has_col) {
     $sql = "SELECT br_id, mem_id, br_type, br_amount, br_months_pay, br_date_request, br_details,
-                   guarantor_1, guarantor_2, guarantor_1_id, guarantor_2_id,
+                   guarantor_1_id, guarantor_2_id,
                    guarantor_1_approve, guarantor_2_approve,
                    (SELECT mem_name FROM member WHERE mem_id = borrow_request.mem_id) AS borrower_name
             FROM borrow_request
@@ -63,7 +63,7 @@ function typeLabel($t) {
                 <th>ผู้ขอกู้</th>
                 <th>ประเภท</th>
                 <th class="text-end">ยอดกู้ (บาท)</th>
-                <th class="text-center">บทบาทคุณ</th>
+                <th class="text-center">ลำดับที่ผู้ค้ำ</th>
                 <th class="text-center">สถานะการรับรอง</th>
                 <th class="text-center">จัดการ</th>
               </tr>
@@ -88,8 +88,8 @@ function typeLabel($t) {
                   <form action="guarantor_approve.php" method="POST" class="d-inline">
                     <input type="hidden" name="br_id" value="<?php echo (int)$r['br_id']; ?>">
                     <input type="hidden" name="role" value="<?php echo $r['my_role']; ?>">
-                    <button type="submit" name="action" value="1" class="btn btn-success btn-sm me-1"><i class="fas fa-check"></i> อนุมัติ</button>
-                    <button type="submit" name="action" value="2" class="btn btn-danger btn-sm"><i class="fas fa-times"></i> ไม่อนุมัติ</button>
+                    <button type="submit" name="action" value="1" class="btn btn-success btn-sm me-1" onclick="return confirm('คุณแน่ใจหรือไม่ว่าต้องการ ยืนยันอนุมัติ การค้ำประกันนี้?');"><i class="fas fa-check"></i> อนุมัติ</button>
+                    <button type="submit" name="action" value="2" class="btn btn-danger btn-sm" onclick="return confirm('คุณแน่ใจหรือไม่ว่าต้องการ ไม่อนุมัติ การค้ำประกันนี้?');"><i class="fas fa-times"></i> ไม่อนุมัติ</button>
                   </form>
                   <?php else: ?>
                   -

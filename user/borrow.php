@@ -45,6 +45,9 @@ foreach ([1, 2] as $loan_type) {
     $rs_active = mysqli_query($condb, $sql_active);
     $row_active = $rs_active ? mysqli_fetch_assoc($rs_active) : null;
     if ($row_active) {
+        // ประเมินยอดหนี้คงเหลือ (เงินต้น) = (วงเงินกู้ / จำนวนงวดทั้งหมด) * จำนวนงวดที่เหลือ
+        $remaining_principal = round(($row_active['br_amount'] / $row_active['br_months_pay']) * $row_active['unpaid_count']);
+        $row_active['remaining_principal'] = $remaining_principal;
         $active_loans[$loan_type] = $row_active;
     }
 }
@@ -85,7 +88,7 @@ foreach ([1, 2] as $loan_type) {
                   <?php endforeach; ?>
                   <div class="mt-2 small text-muted">
                     <i class="fas fa-info-circle me-1"></i>
-                    การยื่นคำขอกู้ซ้ำประเภทเดิมต้องเลือก <strong>รีเซ็ทสัญญาเดิม</strong> — งวดที่เหลือจะถูกยกเลิกเมื่อผู้ดูแลอนุมัติคำขอใหม่
+                    การยื่นคำขอกู้ซ้ำประเภทเดิมต้องเลือก <strong>กู้เพิ่ม</strong> — งวดที่เหลือจะถูกยกเลิกและคำนวณงวดใหม่เมื่อผู้ดูแลระบบอนุมัติคำขอใหม่
                   </div>
                 </div>
               </div>
@@ -95,7 +98,7 @@ foreach ([1, 2] as $loan_type) {
             <?php if (isset($_GET['err']) && $_GET['err'] === 'active_loan'): ?>
             <div class="alert alert-danger mb-3">
               <i class="fas fa-ban me-1"></i>
-              ไม่สามารถยื่นคำขอกู้ประเภทนี้ได้ เนื่องจากยังมีสัญญาที่ค้างชำระอยู่ กรุณาเลือก <strong>รีเซ็ทสัญญา</strong> หากต้องการเริ่มสัญญาใหม่
+              ไม่สามารถยื่นคำขอกู้ประเภทนี้ได้ เนื่องจากยังมีสัญญาที่ค้างชำระอยู่ กรุณาเลือก <strong>กู้เพิ่ม</strong> หากต้องการเริ่มสัญญาใหม่และรวมยอด
             </div>
             <?php endif; ?>
 
@@ -157,10 +160,30 @@ foreach ([1, 2] as $loan_type) {
                     <div class="w-100">
                       <strong class="text-danger">คำเตือน: มีสัญญาเงินกู้ประเภทนี้ที่ยังค้างชำระ</strong>
                       <p class="mb-2 mt-1 small" id="reset_info_text"></p>
+                      
+                      <div id="reset_calc_section" class="p-2 mb-2 bg-white rounded border border-danger small" style="display:none;">
+                        <div class="d-flex justify-content-between mb-1">
+                          <span>วงเงินกู้ใหม่:</span>
+                          <strong id="calc_new_amt">0 บาท</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 text-danger">
+                          <span>หักยอดหนี้คงเหลือเดิม:</span>
+                          <strong id="calc_old_bal">0 บาท</strong>
+                        </div>
+                        <hr class="my-1">
+                        <div class="d-flex justify-content-between text-success">
+                          <span>ยอดเงินที่คาดว่าจะได้รับจริง:</span>
+                          <strong id="calc_receive_amt">0 บาท</strong>
+                        </div>
+                        <div id="calc_error" class="text-danger mt-1 fw-bold text-center" style="display:none;">
+                          <i class="fas fa-exclamation-circle"></i> วงเงินที่กู้ใหม่ต้องมากกว่ายอดหนี้คงเหลือเดิม
+                        </div>
+                      </div>
+
                       <div class="form-check">
                         <input type="checkbox" class="form-check-input" id="confirm_reset">
                         <label class="form-check-label fw-semibold text-danger" for="confirm_reset">
-                          ฉันเข้าใจและยืนยันขอรีเซ็ทสัญญาเดิม — งวดที่เหลือทั้งหมดจะถูกยกเลิกเมื่อผู้ดูแลระบบอนุมัติ
+                          ฉันเข้าใจและยืนยันขอ <strong>กู้เพิ่ม</strong> (นำยอดเดิมมารวมและคำนวณงวดจ่ายใหม่ เมื่อผู้ดูแลระบบอนุมัติ)
                         </label>
                       </div>
                     </div>
@@ -274,25 +297,69 @@ foreach ([1, 2] as $loan_type) {
       var brIsReset = document.getElementById('br_is_reset');
       var brResetBrId = document.getElementById('br_reset_br_id');
       var confirmReset = document.getElementById('confirm_reset');
+      var resetCalcSection = document.getElementById('reset_calc_section');
 
       if (activeLoan) {
         var typeName = v == '1' ? 'เงินกู้สามัญ' : 'เงินกู้ฉุกเฉิน';
         document.getElementById('reset_info_text').innerHTML =
           'สัญญา' + typeName + ' เลขที่ <strong>#' + activeLoan.br_id + '</strong>' +
-          ' ยังเหลืออีก <strong>' + activeLoan.unpaid_count + '/' + activeLoan.br_months_pay + ' งวด</strong>' +
-          ' — หากดำเนินการต่อ งวดที่เหลือทั้งหมดจะถูกยกเลิกโดยอัตโนมัติเมื่อผู้ดูแลอนุมัติคำขอใหม่นี้';
+          ' ยังเหลืออีก <strong>' + activeLoan.unpaid_count + '/' + activeLoan.br_months_pay + ' งวด</strong> (ยอดหนี้คงเหลือ <strong>' + Number(activeLoan.remaining_principal).toLocaleString('th-TH') + '</strong> บาท)';
         resetSection.style.display = 'block';
+        if (resetCalcSection) resetCalcSection.style.display = 'block';
         brIsReset.value = '1';
         brResetBrId.value = activeLoan.br_id;
         if (confirmReset) confirmReset.checked = false;
+        if (typeof updateResetCalc === 'function') updateResetCalc();
       } else {
         resetSection.style.display = 'none';
+        if (resetCalcSection) resetCalcSection.style.display = 'none';
         brIsReset.value = '0';
         brResetBrId.value = '';
         if (confirmReset) confirmReset.checked = false;
       }
     };
   }
+
+  function updateResetCalc() {
+    var bType = document.getElementById('br_type').value;
+    if (!bType || !activeLoansData[bType]) return;
+    
+    var activeLoan = activeLoansData[bType];
+    var oldBal = parseFloat(activeLoan.remaining_principal || 0);
+    var newAmtInput = (bType == '1') ? document.getElementById('amt_common') : document.getElementById('amt_emergency');
+    var newAmt = parseFloat(newAmtInput.value || 0);
+    
+    var calcNewAmt = document.getElementById('calc_new_amt');
+    var calcOldBal = document.getElementById('calc_old_bal');
+    if(calcNewAmt) calcNewAmt.innerText = newAmt.toLocaleString('th-TH') + ' บาท';
+    if(calcOldBal) calcOldBal.innerText = oldBal.toLocaleString('th-TH') + ' บาท';
+    
+    var recvAmt = newAmt - oldBal;
+    var recvEl = document.getElementById('calc_receive_amt');
+    var errEl = document.getElementById('calc_error');
+    var confirmReset = document.getElementById('confirm_reset');
+    
+    if (newAmt > 0 && newAmt <= oldBal) {
+      if(recvEl) {
+          recvEl.innerText = '0 บาท';
+          recvEl.className = 'text-danger';
+      }
+      if(errEl) errEl.style.display = 'block';
+      if(confirmReset) confirmReset.disabled = true;
+    } else {
+      if(recvEl) {
+          recvEl.innerText = (recvAmt > 0 ? recvAmt : 0).toLocaleString('th-TH') + ' บาท';
+          recvEl.className = 'text-success';
+      }
+      if(errEl) errEl.style.display = 'none';
+      if(confirmReset) confirmReset.disabled = false;
+    }
+  }
+
+  var amtComm = document.getElementById('amt_common');
+  var amtEmer = document.getElementById('amt_emergency');
+  if (amtComm) { amtComm.addEventListener('input', updateResetCalc); }
+  if (amtEmer) { amtEmer.addEventListener('input', updateResetCalc); }
 
   var guarTypeEl = document.getElementById('guarantee_type');
   if (guarTypeEl) {
@@ -303,14 +370,17 @@ foreach ([1, 2] as $loan_type) {
     };
   }
 
-  ['guarantor_1','guarantor_2'].forEach(function(prefix) {
+  [1, 2].forEach(function(num) {
+    var prefix = 'guarantor_' + num;
     var search = document.getElementById(prefix + '_search');
-    var drop = document.getElementById(prefix + 'Dropdown');
+    var drop = document.getElementById('guarantor' + num + 'Dropdown');
     var nameEl = document.getElementById(prefix + '_name');
     var idEl = document.getElementById(prefix + '_id');
     if (!search || !drop) return;
     search.onfocus = function() { renderGuarantor(search.value, drop, nameEl, idEl, search); };
     search.oninput = function() { renderGuarantor(search.value, drop, nameEl, idEl, search); };
+    // เพิ่ม mousedown event ที่ dropdown เพื่อป้องกันไม่ให้ input blur ก่อนที่จะ click
+    drop.onmousedown = function(e) { e.preventDefault(); };
     search.onblur = function() { setTimeout(function() { drop.style.display = 'none'; }, 200); };
   });
 
@@ -322,7 +392,7 @@ foreach ([1, 2] as $loan_type) {
       if (brIsResetVal == '1') {
         var confirmReset = document.getElementById('confirm_reset');
         if (!confirmReset || !confirmReset.checked) {
-          alert('กรุณายืนยันการรีเซ็ทสัญญาเดิมก่อนดำเนินการต่อ\n(ติ๊กเครื่องหมายยืนยันในกล่องแจ้งเตือนสีแดง)');
+          alert('กรุณายืนยันการกู้เพิ่มก่อนดำเนินการต่อ\n(ติ๊กเครื่องหมายยืนยันในกล่องแจ้งเตือนสีแดง)');
           e.preventDefault();
           return false;
         }
@@ -335,6 +405,21 @@ foreach ([1, 2] as $loan_type) {
         amount = parseFloat(document.getElementById('amt_common').value || '0');
       } else if (bType === '2') {
         amount = parseFloat(document.getElementById('amt_emergency').value || '0');
+      }
+
+      if (gType === '1') {
+        var g1Id = document.getElementById('guarantor_1_id').value;
+        var g2Id = document.getElementById('guarantor_2_id').value;
+        if (!g1Id || !g2Id) {
+          alert('กรุณาเลือกผู้ค้ำประกันให้ครบทั้ง 2 คนจากรายชื่อที่ค้นพบ');
+          e.preventDefault();
+          return false;
+        }
+        if (g1Id === g2Id) {
+          alert('ผู้ค้ำคนที่ 1 และ ผู้ค้ำคนที่ 2 ต้องไม่เป็นบุคคลเดียวกัน');
+          e.preventDefault();
+          return false;
+        }
       }
 
       if (gType === '2') {
