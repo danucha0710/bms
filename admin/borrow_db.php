@@ -96,6 +96,14 @@ if ($borrow == "add"){
 	$guarantee_type = (int)$guarantee_type;
 	
 	if($guarantee_type == 1) {
+		// ตรวจสอบการตั้งค่าเปิด/ปิดอนุมัติผู้ค้ำ
+		$sys_guar_q = mysqli_query($condb, "SELECT st_guarantor_active FROM system WHERE st_id=1");
+		$sys_guar = mysqli_fetch_assoc($sys_guar_q);
+		$g_active = isset($sys_guar['st_guarantor_active']) ? (int)$sys_guar['st_guarantor_active'] : 1;
+		
+		// ถ้าปิดรับรองผู้ค้ำ ให้ถือว่าอนุมัติอัตโนมัติ
+		$g_app_val = ($g_active === 0) ? 1 : 0;
+
 		// ใช้ผู้ค้ำประกันแบบบุคคล: ใช้ mem_id ผู้ค้ำผ่าน guarantor_1_id / guarantor_2_id และแจ้งไปยังผู้ค้ำให้ยืนยัน
 		$sql = "INSERT INTO borrow_request(
 		mem_id,
@@ -118,15 +126,15 @@ if ($borrow == "add"){
 		$guarantee_type,
 		" . ($guarantor_1_id ? "'$guarantor_1_id'" : "NULL") . ",
 		" . ($guarantor_2_id ? "'$guarantor_2_id'" : "NULL") . ",
-		0,
-		0,
+		$g_app_val,
+		$g_app_val,
 		'$br_details',
 		$br_interest_rate,
 		'$date'$reset_vals)";
 		$result = mysqli_query($condb, $sql) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
 
-		// ถ้าบันทึกสำเร็จ ให้สร้างการแจ้งเตือนให้ผู้ค้ำทั้ง 2 คน
-		if ($result) {
+		// ถ้าบันทึกสำเร็จและระบบเปิดรับรองอยู่ ให้สร้างการแจ้งเตือนให้ผู้ค้ำทั้ง 2 คน
+		if ($result && $g_active === 1) {
 			$br_id_new = mysqli_insert_id($condb);
 			$alert_date = date("Y-m-d H:i:s");
 			$alert_msg = "คุณถูกระบุเป็นผู้ค้ำประกันคำขอกู้เลขที่ $br_id_new กรุณาเข้าสู่ระบบเพื่อยืนยันการค้ำประกัน";
@@ -226,10 +234,20 @@ elseif ($borrow == "approve"){
 		$mem_amount_stock = isset($row['mem_amount_stock']) ? (int)$row['mem_amount_stock'] : 0;
 		$original_br_amount = (float)$row['br_amount'];
 
+		// ดึงข้อมูลการตั้งค่าระบบปัจจุบัน
+		$sql_sys = "SELECT * FROM system WHERE st_id = 1";
+		$res_sys = mysqli_query($condb, $sql_sys);
+		$sys_row = mysqli_fetch_array($res_sys, MYSQLI_ASSOC);
+		$guarantor_active = isset($sys_row['st_guarantor_active']) ? (int)$sys_row['st_guarantor_active'] : 1;
+
 		$canApprove = false;
 		if ($guarantee_type_row === 1) {
-			// ค้ำประกันด้วยบุคคล: อนุมัติได้เฉพาะเมื่อผู้ค้ำทั้ง 2 คนอนุมัติแล้ว
-			$canApprove = ($g1_approve === 1 && $g2_approve === 1);
+			// ค้ำประกันด้วยบุคคล: อนุมัติได้เฉพาะเมื่อผู้ค้ำทั้ง 2 คนอนุมัติแล้ว หรือปิดระบบรับรองไว้
+			if ($guarantor_active === 0) {
+				$canApprove = true;
+			} else {
+				$canApprove = ($g1_approve === 1 && $g2_approve === 1);
+			}
 		} elseif ($guarantee_type_row === 2) {
 			$canApprove = ($mem_amount_stock > $original_br_amount);
 		}
@@ -298,7 +316,16 @@ elseif ($borrow == "approve"){
 			$month = $month_now + $i;
 			$year = $year_now;
 			while ($month > 12) { $month -= 12; $year++; }
-			$dateline = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-' . $st_dateline_safe;
+			
+			// ถ้าเป็นการคำนวณงวดแรก (i=1) และตั้งเวลาให้เริ่มชำระเดือนถัดไป แต่บังเอิญวันที่อนุมัติเลยวันตัดรอบของเดือนปัจจุบันไปแล้ว
+			// จะให้เริ่มชำระในเดือนถัดไปเลย แต่ถ้ายังไม่ถึงวันตัดรอบของเดือนปัจจุบัน จะให้เริ่มชำระเดือนปัจจุบัน
+			// อย่างไรก็ตาม ตามโค้ดเดิม $month = $month_now + $i; คือบังคับงวดแรกเป็นเดือนหน้าอยู่แล้ว
+			
+			// ป้องกันปัญหาวันที่เกินจำนวนวันในเดือนนั้นๆ (เช่น 31 ก.พ. หรือ 31 เม.ย.)
+			$max_days = date('t', strtotime($year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01'));
+			$actual_day = min((int)$st_dateline_safe, $max_days);
+			
+			$dateline = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-' . str_pad($actual_day, 2, '0', STR_PAD_LEFT);
 
 			$br_id_safe = (int)$br_id;
 			$mem_id_safe = mysqli_real_escape_string($condb, $mem_id);

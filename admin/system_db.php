@@ -28,9 +28,28 @@ if (isset($_POST['system']) && $_POST['system'] == "setting") {
     $st_dividend_rate        = mysqli_real_escape_string($condb, $_POST["st_dividend_rate"]);
     $st_average_return_rate  = mysqli_real_escape_string($condb, $_POST["st_average_return_rate"]);
     $st_dateline             = mysqli_real_escape_string($condb, $_POST["st_dateline"]);
+    $st_guarantor_active     = isset($_POST["st_guarantor_active"]) ? 1 : 0;
+    $st_org_name             = mysqli_real_escape_string($condb, $_POST["st_org_name"] ?? '');
+    $st_president_name       = mysqli_real_escape_string($condb, $_POST["st_president_name"] ?? '');
+    $st_finance_name         = mysqli_real_escape_string($condb, $_POST["st_finance_name"] ?? '');
     
     // รับค่าคนแก้ไข (เอาไว้ลง Log)
     $st_edit_by = mysqli_real_escape_string($condb, $_POST["st_edit_by"]);
+
+    // การอัพโหลดรูปภาพโลโก้
+    $st_logo_query = "";
+    if (isset($_FILES['st_logo']) && $_FILES['st_logo']['error'] == 0) {
+        $ext = pathinfo(basename($_FILES['st_logo']['name']), PATHINFO_EXTENSION);
+        $new_image_name = 'logo_' . uniqid() . "." . $ext;
+        $image_path = "../assets/images/";
+        if (!file_exists($image_path)) {
+            mkdir($image_path, 0777, true);
+        }
+        $upload_path = $image_path . $new_image_name;
+        if (move_uploaded_file($_FILES['st_logo']['tmp_name'], $upload_path)) {
+            $st_logo_query = ", st_logo = '$new_image_name'";
+        }
+    }
 
     // 3. คำสั่ง SQL Update
     $sql = "UPDATE `system` SET
@@ -47,7 +66,12 @@ if (isset($_POST['system']) && $_POST['system'] == "setting") {
             st_stock_price          = '$st_stock_price',
             st_dividend_rate        = '$st_dividend_rate',
             st_average_return_rate  = '$st_average_return_rate',
-            st_dateline             = '$st_dateline'
+            st_dateline             = '$st_dateline',
+            st_guarantor_active     = '$st_guarantor_active',
+            st_org_name             = '$st_org_name',
+            st_president_name       = '$st_president_name',
+            st_finance_name         = '$st_finance_name'
+            $st_logo_query
             WHERE st_id = 1";
 
     $result = mysqli_query($condb, $sql) or die ("Error Update: " . mysqli_error($condb));

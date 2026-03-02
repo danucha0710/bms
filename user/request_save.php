@@ -94,14 +94,41 @@ $cr = @mysqli_query($condb, "SHOW COLUMNS FROM borrow_request LIKE 'guarantor_1_
 if ($cr && mysqli_fetch_assoc($cr)) $has_guarantor_approve = true;
 
 if ($guarantee_type == 1) {
+    // ตรวจสอบการตั้งค่าเปิด/ปิดอนุมัติผู้ค้ำ
+    $sys_guar_q = mysqli_query($condb, "SELECT st_guarantor_active FROM system WHERE st_id=1");
+    $sys_guar = mysqli_fetch_assoc($sys_guar_q);
+    $g_active = isset($sys_guar['st_guarantor_active']) ? (int)$sys_guar['st_guarantor_active'] : 1;
+    
+    // ถ้าปิดรับรองผู้ค้ำ ให้ถือว่าอนุมัติอัตโนมัติ
+    $g_app_val = ($g_active === 0) ? 1 : 0;
+
     $sql = "INSERT INTO borrow_request (mem_id, br_type, br_amount, br_months_pay, guarantee_type, guarantor_1_id, guarantor_2_id, guarantor_1_approve, guarantor_2_approve, br_details, br_interest_rate, br_date_request$reset_cols) 
-            VALUES ('$mem_id', $br_type, $br_amount, $br_months_pay, $guarantee_type, " . ($guarantor_1_id ? "'$guarantor_1_id'" : "NULL") . ", " . ($guarantor_2_id ? "'$guarantor_2_id'" : "NULL") . ", 0, 0, '$br_details', $br_interest_rate, '$date'$reset_vals)";
+            VALUES ('$mem_id', $br_type, $br_amount, $br_months_pay, $guarantee_type, " . ($guarantor_1_id ? "'$guarantor_1_id'" : "NULL") . ", " . ($guarantor_2_id ? "'$guarantor_2_id'" : "NULL") . ", $g_app_val, $g_app_val, '$br_details', $br_interest_rate, '$date'$reset_vals)";
+
+    $result = mysqli_query($condb, $sql);
+    
+    // ถ้าบันทึกสำเร็จและระบบเปิดรับรองอยู่ ให้สร้างการแจ้งเตือนให้ผู้ค้ำทั้ง 2 คน
+    if ($result && $g_active === 1) {
+        $br_id_new = mysqli_insert_id($condb);
+        $alert_date = date("Y-m-d H:i:s");
+        $alert_msg = "คุณถูกระบุเป็นผู้ค้ำประกันคำขอกู้เลขที่ $br_id_new กรุณาเข้าสู่ระบบเพื่อยืนยันการค้ำประกัน";
+
+        if ($guarantor_1_id) {
+            $msg1 = mysqli_real_escape_string($condb, $alert_msg);
+            mysqli_query($condb, "INSERT INTO borrow_alert (mem_id, ba_message, ba_date, ba_read_status) VALUES ('$guarantor_1_id', '$msg1', '$alert_date', 0)");
+        }
+        if ($guarantor_2_id) {
+            $msg2 = mysqli_real_escape_string($condb, $alert_msg);
+            mysqli_query($condb, "INSERT INTO borrow_alert (mem_id, ba_message, ba_date, ba_read_status) VALUES ('$guarantor_2_id', '$msg2', '$alert_date', 0)");
+        }
+    }
 } else {
     $sql = "INSERT INTO borrow_request (mem_id, br_type, br_amount, br_months_pay, guarantee_type, br_details, br_interest_rate, br_date_request$reset_cols) 
             VALUES ('$mem_id', $br_type, $br_amount, $br_months_pay, $guarantee_type, '$br_details', $br_interest_rate, '$date'$reset_vals)";
+    $result = mysqli_query($condb, $sql);
 }
 
-if (mysqli_query($condb, $sql)) {
+if ($result) {
     ob_end_clean();
     header("Location: index.php?save_ok=1");
     exit();

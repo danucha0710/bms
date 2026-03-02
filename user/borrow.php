@@ -345,7 +345,10 @@ foreach ([1, 2] as $loan_type) {
           recvEl.className = 'text-danger';
       }
       if(errEl) errEl.style.display = 'block';
-      if(confirmReset) confirmReset.disabled = true;
+      if(confirmReset) {
+          confirmReset.checked = false;
+          confirmReset.disabled = true;
+      }
     } else {
       if(recvEl) {
           recvEl.innerText = (recvAmt > 0 ? recvAmt : 0).toLocaleString('th-TH') + ' บาท';
@@ -391,6 +394,23 @@ foreach ([1, 2] as $loan_type) {
       var brIsResetVal = document.getElementById('br_is_reset').value;
       if (brIsResetVal == '1') {
         var confirmReset = document.getElementById('confirm_reset');
+        
+        var bType = document.getElementById('br_type').value;
+        var activeLoan = activeLoansData[bType];
+        var oldBal = activeLoan ? parseFloat(activeLoan.remaining_principal || 0) : 0;
+        var amount = 0;
+        if (bType === '1') {
+          amount = parseFloat(document.getElementById('amt_common').value || '0');
+        } else if (bType === '2') {
+          amount = parseFloat(document.getElementById('amt_emergency').value || '0');
+        }
+
+        if (amount <= oldBal) {
+          alert('ไม่สามารถบันทึกคำขอได้ เนื่องจากวงเงินที่กู้ใหม่ต้องมากกว่ายอดหนี้คงเหลือเดิม');
+          e.preventDefault();
+          return false;
+        }
+
         if (!confirmReset || !confirmReset.checked) {
           alert('กรุณายืนยันการกู้เพิ่มก่อนดำเนินการต่อ\n(ติ๊กเครื่องหมายยืนยันในกล่องแจ้งเตือนสีแดง)');
           e.preventDefault();

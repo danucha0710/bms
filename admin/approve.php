@@ -146,14 +146,20 @@ function getGuaranteeText($type){
               </div>
 
               <?php 
+              $guarantor_active = isset($row_system['st_guarantor_active']) ? (int)$row_system['st_guarantor_active'] : 1;
               $g1_approve = isset($value['guarantor_1_approve']) ? (int)$value['guarantor_1_approve'] : 0;
               $g2_approve = isset($value['guarantor_2_approve']) ? (int)$value['guarantor_2_approve'] : 0;
-              $both_guarantors_ok = ($value['guarantee_type'] == 1) ? ($g1_approve === 1 && $g2_approve === 1) : true;
+              $both_guarantors_ok = ($value['guarantee_type'] == 1) ? (($g1_approve === 1 && $g2_approve === 1) || $guarantor_active === 0) : true;
               ?>
               <?php if($value['guarantee_type'] == 1){ ?>
               <div class="row mb-3">
                 <label class="col-sm-3 col-form-label fw-bold">ผู้ค้ำประกัน</label>
                 <div class="col-sm-9">
+                  <?php if ($guarantor_active === 0): ?>
+                  <div class="alert alert-info py-2 px-3 mb-2">
+                      <i class="fas fa-info-circle"></i> ระบบปิดการรับรองจากผู้ค้ำประกัน (สามารถอนุมัติได้ทันที)
+                  </div>
+                  <?php endif; ?>
                   <ul class="list-group">
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                       <span>1. <?php 

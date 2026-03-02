@@ -156,7 +156,39 @@ $value = mysqli_fetch_array($result, MYSQLI_ASSOC);
                                 </div>
                             </div>
                             
-                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">5. การตั้งค่าอื่นๆ</h6>
+                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">5. การตั้งค่าข้อมูลพื้นฐานหน่วยงาน</h6>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">รูปภาพโลโก้</label>
+                                <div class="col-sm-6">
+                                    <?php if(!empty($value['st_logo']) && file_exists('../assets/images/'.$value['st_logo'])): ?>
+                                        <div class="mb-2">
+                                            <img src="../assets/images/<?php echo $value['st_logo']; ?>" alt="Logo" style="max-height: 80px;" class="border rounded p-1">
+                                        </div>
+                                    <?php endif; ?>
+                                    <input type="file" class="form-control" name="st_logo" accept="image/png, image/jpeg, image/jpg">
+                                    <small class="text-muted">* เว้นว่างไว้หากไม่ต้องการเปลี่ยน</small>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">ชื่อหน่วยงาน</label>
+                                <div class="col-sm-6">
+                                    <input type="text" class="form-control" name="st_org_name" value="<?php echo htmlspecialchars($value['st_org_name'] ?? ''); ?>">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">ชื่อประธาน</label>
+                                <div class="col-sm-6">
+                                    <input type="text" class="form-control" name="st_president_name" value="<?php echo htmlspecialchars($value['st_president_name'] ?? ''); ?>">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">ชื่อเจ้าหน้าที่การเงิน</label>
+                                <div class="col-sm-6">
+                                    <input type="text" class="form-control" name="st_finance_name" value="<?php echo htmlspecialchars($value['st_finance_name'] ?? ''); ?>">
+                                </div>
+                            </div>
+
+                            <h6 class="text-primary border-bottom pb-2 mb-3 mt-4">6. การตั้งค่าอื่นๆ</h6>
                             <div class="row mb-3">
                                 <label class="col-sm-4 col-form-label">ตัดรอบชำระเงินทุกวันที่</label>
                                 <div class="col-sm-4">
@@ -165,6 +197,15 @@ $value = mysqli_fetch_array($result, MYSQLI_ASSOC);
                                         <span class="input-group-text">ของเดือน</span>
                                     </div>
                                     <small class="text-muted">* หากระบุ 31 ระบบจะปัดเป็นวันสุดท้ายของเดือนนั้นๆ</small>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">การรับรองจากผู้ค้ำประกัน</label>
+                                <div class="col-sm-4 d-flex align-items-center">
+                                    <div class="form-check form-switch fs-5">
+                                        <input class="form-check-input" type="checkbox" id="st_guarantor_active" name="st_guarantor_active" value="1" <?php echo (!isset($value['st_guarantor_active']) || $value['st_guarantor_active'] == 1) ? 'checked' : ''; ?>>
+                                        <label class="form-check-label ms-2 fs-6 mt-1" for="st_guarantor_active">เปิดใช้งาน (ผู้ค้ำต้องกดยืนยัน)</label>
+                                    </div>
                                 </div>
                             </div>
 
