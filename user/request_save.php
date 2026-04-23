@@ -79,8 +79,9 @@ if ($br_is_reset == 0) {
 $reset_cols = '';
 $reset_vals = '';
 if ($has_reset_col && $br_is_reset == 1 && $br_reset_br_id > 0) {
+    $oid = (int) $br_reset_br_id;
     $reset_cols = ', br_is_reset, br_reset_br_id';
-    $reset_vals = ", 1, $br_reset_br_id";
+    $reset_vals = ", 0, $oid";
 }
 
 // ไม่ใช้ชื่อผู้ค้ำ (guarantor_1, guarantor_2) ในระบบอีกต่อไป ค่าใน DB จะเว้นว่างไว้
@@ -106,10 +107,10 @@ if ($guarantee_type == 1) {
             VALUES ('$mem_id', $br_type, $br_amount, $br_months_pay, $guarantee_type, " . ($guarantor_1_id ? "'$guarantor_1_id'" : "NULL") . ", " . ($guarantor_2_id ? "'$guarantor_2_id'" : "NULL") . ", $g_app_val, $g_app_val, '$br_details', $br_interest_rate, '$date'$reset_vals)";
 
     $result = mysqli_query($condb, $sql);
+    $br_id_new = $result ? (int) mysqli_insert_id($condb) : 0;
     
     // ถ้าบันทึกสำเร็จและระบบเปิดรับรองอยู่ ให้สร้างการแจ้งเตือนให้ผู้ค้ำทั้ง 2 คน
     if ($result && $g_active === 1) {
-        $br_id_new = mysqli_insert_id($condb);
         $alert_date = date("Y-m-d H:i:s");
         $alert_msg = "คุณถูกระบุเป็นผู้ค้ำประกันคำขอกู้เลขที่ $br_id_new กรุณาเข้าสู่ระบบเพื่อยืนยันการค้ำประกัน";
 

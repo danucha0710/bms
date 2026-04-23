@@ -20,7 +20,7 @@ $sys_emergency      = (int)($row_system['st_max_amount_emergency'] ?? 0);
 $sys_min_stock_savings = (int)($row_system['st_min_stock_savings'] ?? 0);
 $sys_max_stock_savings = (int)($row_system['st_max_stock_savings'] ?? 0);
 
-$query_member = "SELECT * FROM member ORDER BY mem_register_date DESC";
+$query_member = "SELECT * FROM member ORDER BY mem_status ASC, mem_register_date DESC";
 $rs_member = mysqli_query($condb, $query_member) or die("Error : ".mysqli_error($condb));
 
 function getStatusName($status_id) {
@@ -291,7 +291,8 @@ function getStatusName($status_id) {
                <div class="row mb-3">
                 <label class="col-sm-3 col-form-label">ระดับการใช้งาน</label>
                 <div class="col-sm-9">
-                  <select class="form-select" name="mem_status" required>
+                  <input type="hidden" class="js-edit-mem-status-value" value="<?php echo htmlspecialchars($row['mem_status'], ENT_QUOTES, 'UTF-8'); ?>">
+                  <select class="form-select bg-light" disabled aria-label="ระดับการใช้งาน (อ่านอย่างเดียว)">
                     <?php if($_SESSION['mem_status'] == '0'){ ?>
                         <option value="0" <?php echo ($row['mem_status']=='0')?'selected':''; ?>>ผู้ดูแลระบบ</option>
                     <?php } ?>
@@ -299,6 +300,7 @@ function getStatusName($status_id) {
                     <option value="2" <?php echo ($row['mem_status']=='2')?'selected':''; ?>>ครู</option>
                     <option value="3" <?php echo ($row['mem_status']=='3')?'selected':''; ?>>เจ้าหน้าที่</option>
                   </select>
+                  <small class="text-muted">* ไม่สามารถแก้ไขได้จากหน้านี้</small>
                 </div>
               </div>
               <div class="row mb-3">
@@ -368,22 +370,23 @@ function getStatusName($status_id) {
                    <label class="form-label small">จำนวนเงินหุ้น (บาท)</label>
                    <input
                      type="number"
-                     class="form-control edit-amount-stock"
-                     name="mem_amount_stock"
+                     class="form-control edit-amount-stock bg-light"
                      min="0"
                      step="1"
                      value="<?php echo isset($row['mem_amount_stock']) ? (int)$row['mem_amount_stock'] : 0; ?>"
+                     readonly
+                     tabindex="-1"
                    >
                  </div>
               </div>
               <div class="row mb-3">
                  <div class="col-md-6">
                     <label class="form-label small">วงเงินกู้สามัญ (บาท) <span class="edit-max-common-hint text-muted small"></span></label>
-                    <input type="number" class="form-control edit-common-credit" name="common_credit" min="0" value="<?php echo (int)$row['mem_common_credit']; ?>">
+                    <input type="number" class="form-control edit-common-credit bg-light" min="0" value="<?php echo (int)$row['mem_common_credit']; ?>" readonly tabindex="-1">
                  </div>
                  <div class="col-md-6">
                     <label class="form-label small">วงเงินกู้ฉุกเฉิน (บาท) <span class="edit-max-emergency-hint text-muted small"></span></label>
-                    <input type="number" class="form-control edit-emergency-credit" name="emergency_credit" min="0" value="<?php echo (int)$row['mem_emergency_credit']; ?>">
+                    <input type="number" class="form-control edit-emergency-credit bg-light" min="0" value="<?php echo (int)$row['mem_emergency_credit']; ?>" readonly tabindex="-1">
                  </div>
               </div>
 
@@ -400,91 +403,59 @@ function getStatusName($status_id) {
     <?php } ?>
     <script>
     (function() {
-      var sysCommonTeacher = <?php echo $sys_common_teacher; ?>;
-      var sysCommonOfficer = <?php echo $sys_common_officer; ?>;
-      var sysEmergency = <?php echo $sys_emergency; ?>;
       var sysMinStock = <?php echo $sys_min_stock_savings; ?>;
       var sysMaxStock = <?php echo $sys_max_stock_savings; ?>;
 
       document.querySelectorAll('.modal').forEach(function(modal) {
-        var sel = modal.querySelector('select[name="mem_status"]');
         var commonInp = modal.querySelector('.edit-common-credit');
         var emergencyInp = modal.querySelector('.edit-emergency-credit');
         var stockInp = modal.querySelector('.edit-stock-savings');
-        var amountStockInp = modal.querySelector('.edit-amount-stock');
         var commonHint = modal.querySelector('.edit-max-common-hint');
         var emergencyHint = modal.querySelector('.edit-max-emergency-hint');
-        if (!sel || !commonInp || !emergencyInp) return;
-        function setMaxAndHint(maxCommon, maxEmergency) {
-          commonInp.max = maxCommon;
-          emergencyInp.max = maxEmergency;
-          if (commonHint) commonHint.textContent = maxCommon > 0 ? '(สูงสุด ' + Number(maxCommon).toLocaleString('th-TH') + ' บาท)' : '';
-          if (emergencyHint) emergencyHint.textContent = maxEmergency > 0 ? '(สูงสุด ' + Number(maxEmergency).toLocaleString('th-TH') + ' บาท)' : '';
-          var cv = parseInt(commonInp.value, 10) || 0;
-          var ev = parseInt(emergencyInp.value, 10) || 0;
-          if (maxCommon >= 0 && cv > maxCommon) commonInp.value = maxCommon;
-          if (maxEmergency >= 0 && ev > maxEmergency) emergencyInp.value = maxEmergency;
-        }
-        function toggleEditCredits() {
-          var v = sel.value;
-          if (v === '0' || v === '1') {
-            commonInp.value = '0';
-            emergencyInp.value = '0';
-            commonInp.readOnly = true;
-            emergencyInp.readOnly = true;
-            commonInp.removeAttribute('max');
-            emergencyInp.removeAttribute('max');
-            commonInp.classList.add('bg-light');
-            emergencyInp.classList.add('bg-light');
-            if (commonHint) commonHint.textContent = '';
-            if (emergencyHint) emergencyHint.textContent = '';
-            // เงินออมหุ้น/เดือน: Admin/พนักงานคีย์ข้อมูล = 0 และแก้ไขไม่ได้
-            if (stockInp) {
-              stockInp.value = 0;
-              stockInp.readOnly = true;
-              stockInp.classList.add('bg-light');
-              stockInp.removeAttribute('min');
-              stockInp.removeAttribute('max');
-            }
-            if (amountStockInp) {
-              amountStockInp.value = 0;
-              amountStockInp.readOnly = true;
-              amountStockInp.classList.add('bg-light');
-            }
-          } else {
-            commonInp.readOnly = false;
-            emergencyInp.readOnly = false;
-            commonInp.classList.remove('bg-light');
-            emergencyInp.classList.remove('bg-light');
-            if (v === '2') setMaxAndHint(sysCommonTeacher, sysEmergency);
-            else if (v === '3') setMaxAndHint(sysCommonOfficer, sysEmergency);
-            else setMaxAndHint(0, 0);
+        if (!commonInp || !emergencyInp) return;
 
-            // เงินออมหุ้น/เดือน: ครู/เจ้าหน้าที่ ใช้ min/max จากระบบ
-            if (stockInp) {
-              stockInp.readOnly = false;
-              stockInp.classList.remove('bg-light');
-              if (sysMinStock >= 0) stockInp.min = sysMinStock;
-              else stockInp.removeAttribute('min');
-              if (sysMaxStock > 0) stockInp.max = sysMaxStock;
-              else stockInp.removeAttribute('max');
-              var sv = parseInt(stockInp.value, 10);
-              if (isNaN(sv) || sv < sysMinStock) {
-                stockInp.value = sysMinStock > 0 ? sysMinStock : 0;
-              } else if (sysMaxStock > 0 && sv > sysMaxStock) {
-                stockInp.value = sysMaxStock;
-              }
-            }
-            if (amountStockInp) {
-              amountStockInp.readOnly = false;
-              amountStockInp.classList.remove('bg-light');
+        function memStatusVal() {
+          var h = modal.querySelector('.js-edit-mem-status-value');
+          return h ? h.value : '';
+        }
+
+        function toggleEditStockSavingsOnly() {
+          var v = memStatusVal();
+          if (commonHint) {
+            commonHint.textContent = '(อ่านอย่างเดียว)';
+          }
+          if (emergencyHint) {
+            emergencyHint.textContent = '(อ่านอย่างเดียว)';
+          }
+          if (!stockInp) return;
+          if (v === '0' || v === '1') {
+            stockInp.value = 0;
+            stockInp.readOnly = true;
+            stockInp.classList.add('bg-light');
+            stockInp.removeAttribute('min');
+            stockInp.removeAttribute('max');
+          } else {
+            stockInp.readOnly = false;
+            stockInp.classList.remove('bg-light');
+            if (sysMinStock >= 0) stockInp.min = sysMinStock;
+            else stockInp.removeAttribute('min');
+            if (sysMaxStock > 0) stockInp.max = sysMaxStock;
+            else stockInp.removeAttribute('max');
+            var sv = parseInt(stockInp.value, 10);
+            if (isNaN(sv) || sv < sysMinStock) {
+              stockInp.value = sysMinStock > 0 ? sysMinStock : 0;
+            } else if (sysMaxStock > 0 && sv > sysMaxStock) {
+              stockInp.value = sysMaxStock;
             }
           }
         }
-        sel.addEventListener('change', toggleEditCredits);
-        modal.addEventListener('show.bs.modal', toggleEditCredits);
+        modal.addEventListener('show.bs.modal', toggleEditStockSavingsOnly);
       });
     })();
     </script>
 
+<script>
+window.DATATABLE_DEFAULT_ORDER = [[0, "asc"]];
+window.DATATABLE_COLUMN_DEFS = [{ "type": "num", "targets": 0 }];
+</script>
 <?php include('../includes/footer.php'); ?>

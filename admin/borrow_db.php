@@ -42,6 +42,8 @@ if ($borrow == "add"){
 	$br_is_reset = isset($_POST["br_is_reset"]) ? (int)$_POST["br_is_reset"] : 0;
 	$br_reset_br_id = isset($_POST["br_reset_br_id"]) ? (int)$_POST["br_reset_br_id"] : 0;
 
+	$br_type_int = isset($_POST["br_type"]) ? (int)$_POST["br_type"] : 0;
+
 	if ($br_is_reset == 0) {
 		$sql_chk = "SELECT r.br_id
 					FROM borrow_request r
@@ -67,13 +69,14 @@ if ($borrow == "add"){
 					FROM borrow_request r
 					INNER JOIN borrowing b ON r.br_id = b.br_id
 					WHERE r.br_id = $br_reset_br_id AND r.mem_id = '$mem_id'
+					  AND r.br_type = $br_type_int
 					  AND r.br_status = 1 AND b.bw_status = 0
 					LIMIT 1";
 		$rs_vfy = mysqli_query($condb, $sql_vfy);
 		if (!$rs_vfy || !mysqli_fetch_assoc($rs_vfy)) {
 			mysqli_close($condb);
 			ob_end_clean();
-			echo "<script type='text/javascript'>alert('ไม่พบสัญญากู้เดิมที่ค้างชำระ'); window.location='borrow_request.php';</script>";
+			echo "<script type='text/javascript'>alert('ไม่พบสัญญากู้เดิมที่ค้างชำระ หรือประเภทเงินกู้ไม่ตรงกับสัญญา'); window.location='borrow_request.php';</script>";
 			exit();
 		}
 	}
@@ -84,9 +87,11 @@ if ($borrow == "add"){
 	if ($cr_rst && mysqli_fetch_assoc($cr_rst)) $has_reset_col = true;
 	$reset_cols = '';
 	$reset_vals = '';
+	// คำขอใหม่: br_is_reset=0, br_reset_br_id=เลขสัญญาเดิม (สัญญาเดิมจะถูกตั้ง br_is_reset=1 เมื่อ admin อนุมัติคำขอใหม่ — ดู borrow=approve)
 	if ($has_reset_col && $br_is_reset == 1 && $br_reset_br_id > 0) {
+		$oid = (int) $br_reset_br_id;
 		$reset_cols = ', br_is_reset, br_reset_br_id';
-		$reset_vals = ", 1, $br_reset_br_id";
+		$reset_vals = ", 0, $oid";
 	}
 
 	// Type casting สำหรับตัวเลขเพื่อป้องกัน SQL Injection
@@ -94,6 +99,39 @@ if ($borrow == "add"){
 	$br_amount = (float)$br_amount;
 	$br_months_pay = (int)$br_months_pay;
 	$guarantee_type = (int)$guarantee_type;
+
+	if ($br_is_reset == 1 && $br_reset_br_id > 0) {
+		$rid = (int)$br_reset_br_id;
+		$q_rem = "SELECT r.br_id, r.br_amount, r.br_months_pay,
+			(SELECT COUNT(*) FROM borrowing b2 WHERE b2.br_id = r.br_id AND b2.bw_status = 0) AS ucnt
+			FROM borrow_request r
+			WHERE r.br_id = $rid AND r.mem_id = '$mem_id' AND r.br_type = $br_type AND r.br_status = 1
+			LIMIT 1";
+		$rs_rem = mysqli_query($condb, $q_rem);
+		$row_rem = $rs_rem ? mysqli_fetch_assoc($rs_rem) : null;
+		$ucnt = $row_rem ? (int)$row_rem['ucnt'] : 0;
+		if (!$row_rem || $ucnt < 1) {
+			mysqli_close($condb);
+			ob_end_clean();
+			echo "<script type='text/javascript'>alert('ไม่พบงวดค้างชำระของสัญญาเดิม'); window.location='borrow_request.php';</script>";
+			exit();
+		}
+		$mpa = (int)$row_rem['br_months_pay'] > 0 ? (int)$row_rem['br_months_pay'] : 1;
+		$remaining_p = (int)round(((float)$row_rem['br_amount'] / (float)$mpa) * (float)$ucnt);
+		if ($br_amount <= (float)$remaining_p) {
+			mysqli_close($condb);
+			ob_end_clean();
+			echo "<script type='text/javascript'>alert('วงเงินกู้ใหม่ต้องมากกว่ายอดหนี้คงเหลือเดิม (ประมาณ " . number_format($remaining_p) . " บาท)'); window.location='borrow_request.php';</script>";
+			exit();
+		}
+	}
+
+	if ($guarantee_type === 1 && $guarantor_1_id !== '' && $guarantor_2_id !== '' && $guarantor_1_id === $guarantor_2_id) {
+		mysqli_close($condb);
+		ob_end_clean();
+		echo "<script type='text/javascript'>alert('ผู้ค้ำคนที่ 1 และผู้ค้ำคนที่ 2 ต้องไม่เป็นบุคคลเดียวกัน'); window.location='borrow_request.php';</script>";
+		exit();
+	}
 	
 	if($guarantee_type == 1) {
 		// ตรวจสอบการตั้งค่าเปิด/ปิดอนุมัติผู้ค้ำ
@@ -132,10 +170,10 @@ if ($borrow == "add"){
 		$br_interest_rate,
 		'$date'$reset_vals)";
 		$result = mysqli_query($condb, $sql) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
+		$br_id_new = $result ? (int) mysqli_insert_id($condb) : 0;
 
 		// ถ้าบันทึกสำเร็จและระบบเปิดรับรองอยู่ ให้สร้างการแจ้งเตือนให้ผู้ค้ำทั้ง 2 คน
 		if ($result && $g_active === 1) {
-			$br_id_new = mysqli_insert_id($condb);
 			$alert_date = date("Y-m-d H:i:s");
 			$alert_msg = "คุณถูกระบุเป็นผู้ค้ำประกันคำขอกู้เลขที่ $br_id_new กรุณาเข้าสู่ระบบเพื่อยืนยันการค้ำประกัน";
 
@@ -226,6 +264,12 @@ elseif ($borrow == "approve"){
 			exit;
 		}
 
+		$has_reset_col_apr = false;
+		$cr_rapr = @mysqli_query($condb, "SHOW COLUMNS FROM borrow_request LIKE 'br_is_reset'");
+		if ($cr_rapr && mysqli_fetch_assoc($cr_rapr)) {
+			$has_reset_col_apr = true;
+		}
+
 		// ตรวจสอบเงื่อนไขก่อนอนุมัติ: ค้ำบุคคล = ต้อง guarantor_1_approve=1 และ guarantor_2_approve=1
 		$br_type = (int)$row['br_type'];
 		$guarantee_type_row = (int)$row['guarantee_type'];
@@ -292,9 +336,23 @@ elseif ($borrow == "approve"){
 		$st_amount_cost_officer = (float)$row_system['st_amount_cost_officer'];
 		$interest_rate_monthly = $br_interest_rate / 12;
 
-		$year_now = (int)date("Y");
-		$month_now = (int)date("m");
-		$st_dateline_safe = str_pad((int)$st_dateline, 2, '0', STR_PAD_LEFT);
+		$st_dateline_int = (int) $st_dateline;
+		if ($st_dateline_int < 1) {
+			$st_dateline_int = 1;
+		} elseif ($st_dateline_int > 31) {
+			$st_dateline_int = 31;
+		}
+		// งวดแรก = วันตัดรอบ (st_dateline) ของเดือนถัดไปหลังวันที่อนุมัติ; งวดถัดไปบวกทีละ 1 เดือนตามปฏิทิน
+		$approveDateObj = new DateTime(substr($date, 0, 10));
+		$firstDueDate = clone $approveDateObj;
+		$firstDueDate->modify('first day of next month');
+		$maxDaysFirst = (int) $firstDueDate->format('t');
+		$dueDay = min($st_dateline_int, $maxDaysFirst);
+		$firstDueDate->setDate(
+			(int) $firstDueDate->format('Y'),
+			(int) $firstDueDate->format('m'),
+			$dueDay
+		);
 
 		if ($mem_status != 2 && $mem_status != 3) {
 			$result1 = true; // ไม่สร้างงวดสำหรับสถานะอื่น
@@ -312,20 +370,18 @@ elseif ($borrow == "approve"){
 				$br_amount -= $principal_this;
 			}
 			$round_pay = $i . '/' . $br_months_pay;
-			// i เริ่มที่ 1 → งวดแรกคือเดือนถัดไป (month_now + 1)
-			$month = $month_now + $i;
-			$year = $year_now;
-			while ($month > 12) { $month -= 12; $year++; }
-			
-			// ถ้าเป็นการคำนวณงวดแรก (i=1) และตั้งเวลาให้เริ่มชำระเดือนถัดไป แต่บังเอิญวันที่อนุมัติเลยวันตัดรอบของเดือนปัจจุบันไปแล้ว
-			// จะให้เริ่มชำระในเดือนถัดไปเลย แต่ถ้ายังไม่ถึงวันตัดรอบของเดือนปัจจุบัน จะให้เริ่มชำระเดือนปัจจุบัน
-			// อย่างไรก็ตาม ตามโค้ดเดิม $month = $month_now + $i; คือบังคับงวดแรกเป็นเดือนหน้าอยู่แล้ว
-			
-			// ป้องกันปัญหาวันที่เกินจำนวนวันในเดือนนั้นๆ (เช่น 31 ก.พ. หรือ 31 เม.ย.)
-			$max_days = date('t', strtotime($year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01'));
-			$actual_day = min((int)$st_dateline_safe, $max_days);
-			
-			$dateline = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-' . str_pad($actual_day, 2, '0', STR_PAD_LEFT);
+			$payDate = clone $firstDueDate;
+			if ($i > 1) {
+				$payDate->modify('+' . ($i - 1) . ' months');
+			}
+			$maxDaysM = (int) $payDate->format('t');
+			$dayUse = min($st_dateline_int, $maxDaysM);
+			$payDate->setDate(
+				(int) $payDate->format('Y'),
+				(int) $payDate->format('m'),
+				$dayUse
+			);
+			$dateline = $payDate->format('Y-m-d');
 
 			$br_id_safe = (int)$br_id;
 			$mem_id_safe = mysqli_real_escape_string($condb, $mem_id);
@@ -361,12 +417,14 @@ elseif ($borrow == "approve"){
 			}
 		}
 
-		// ถ้าเป็นการรีเซ็ทสัญญา: ยกเลิกงวดที่เหลือของสัญญาเดิมทั้งหมด
-		$br_is_reset_flag    = isset($row['br_is_reset'])    ? (int)$row['br_is_reset']    : 0;
-		$br_reset_br_id_flag = isset($row['br_reset_br_id']) ? (int)$row['br_reset_br_id'] : 0;
-		if ($br_is_reset_flag == 1 && $br_reset_br_id_flag > 0) {
-			// กำหนด bw_status = 2 (ยกเลิก/รีเซ็ท) สำหรับงวดที่ยังไม่จ่ายของสัญญาเดิม
-			mysqli_query($condb, "UPDATE borrowing SET bw_status = 2 WHERE br_id = $br_reset_br_id_flag AND bw_status = 0");
+		// คำขอใหม่ที่แทน/รีเนรจี: br_reset_br_id = เลขสัญญาเดิม — ยกเลิกงวดค้าง + ตั้งสัญญาเดิมเป็น รีเซ็ต หลังอนุมัติสำเร็จ
+		$predecessor_br = isset($row['br_reset_br_id']) ? (int) $row['br_reset_br_id'] : 0;
+		if ($predecessor_br > 0) {
+			mysqli_query($condb, "UPDATE borrowing SET bw_status = 2 WHERE br_id = $predecessor_br AND bw_status = 0");
+			if ($has_reset_col_apr) {
+				$mem_ow = mysqli_real_escape_string($condb, $row['mem_id']);
+				mysqli_query($condb, "UPDATE borrow_request SET br_is_reset=1, br_reset_br_id=" . (int) $br_id . " WHERE br_id=" . $predecessor_br . " AND mem_id='" . $mem_ow . "' LIMIT 1");
+			}
 		}
 
 		if($result and $result1 and $update_credit_ok){
@@ -390,6 +448,12 @@ elseif ($borrow == "approve"){
 		// Type casting เพื่อป้องกัน SQL Injection
 		$br_id = (int)$br_id;
 		$br_status = (int)$br_status;
+
+		$has_reset_rej = false;
+		$cr_rej = @mysqli_query($condb, "SHOW COLUMNS FROM borrow_request LIKE 'br_is_reset'");
+		if ($cr_rej && mysqli_fetch_assoc($cr_rej)) {
+			$has_reset_rej = true;
+		}
 		
 		$sql = "UPDATE borrow_request SET
 		br_status = $br_status,
@@ -399,6 +463,11 @@ elseif ($borrow == "approve"){
 		WHERE borrow_request.br_id = $br_id";
 
 		$result = mysqli_query($condb, $sql) or die ("Error in query: $sql " . mysqli_error($condb). "<br>$sql");
+
+		// ไม่อนุมัติ: ย้อนสัญญาเดิมที่ (ระบบเดิม) ถูกตั้ง รีเซ็ต/ชี้มาคำขอนี้ — คืนสถานะก่อนมีคำขอแทน
+		if ($result && $has_reset_rej) {
+			mysqli_query($condb, "UPDATE borrow_request SET br_is_reset=0, br_reset_br_id=NULL WHERE br_reset_br_id = " . (int) $br_id);
+		}
 
 		if($result){
 			mysqli_close($condb);

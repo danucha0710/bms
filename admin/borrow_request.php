@@ -23,7 +23,9 @@ if (!empty($_POST['date_s']) && !empty($_POST['date_e'])) {
 // =========================================================
 // 2. ดึงข้อมูลคำขอกู้
 // =========================================================
-$query = "SELECT borrow_request.*, member.mem_name 
+$query = "SELECT borrow_request.*, member.mem_name,
+          (SELECT COUNT(*) FROM borrowing b WHERE b.br_id = borrow_request.br_id) AS _bw_cnt,
+          (SELECT COUNT(*) FROM borrowing b WHERE b.br_id = borrow_request.br_id AND b.bw_status = 0) AS _bw_unpaid
           FROM borrow_request
           INNER JOIN member ON borrow_request.mem_id = member.mem_id
           WHERE $dateText
@@ -64,13 +66,32 @@ function getBorrowType($type_id) {
     return '-';
 }
 
-function getBorrowStatus($status_id) {
-    switch ($status_id) {
-        case 0: return '<span class="badge bg-warning text-dark">รอพิจารณา</span>';
-        case 1: return '<span class="badge bg-success">อนุมัติ</span>';
-        case 2: return '<span class="badge bg-danger">ไม่อนุมัติ</span>';
-        default: return '-';
+/**
+ * สถานะคำขอ: รอพิจารณา / อนุมัติ / ไม่อนุมัติ / รีเซ็ต / ชำระแล้ว
+ * @param array $row แถวจาก query (รวม _bw_cnt, _bw_unpaid, br_is_reset, br_status)
+ */
+function getBorrowRequestDisplayStatus($row) {
+    $st = isset($row['br_status']) ? (int) $row['br_status'] : -1;
+    if ($st === 0) {
+        return '<span class="badge bg-warning text-dark">รอพิจารณา</span>';
     }
+    if ($st === 2) {
+        return '<span class="badge bg-danger">ไม่อนุมัติ</span>';
+    }
+    if ($st === 1) {
+        $bwCnt = isset($row['_bw_cnt']) ? (int) $row['_bw_cnt'] : 0;
+        $bwUnpaid = isset($row['_bw_unpaid']) ? (int) $row['_bw_unpaid'] : 0;
+        $isReset = isset($row['br_is_reset']) ? (int) $row['br_is_reset'] : 0;
+        // สัญญาเดิมที่ถูกแทน: br_is_reset=1 (info — อนุมัติแบบรีเนอร์ส แต่ยังจ่ายไม่หมด)
+        if ($isReset === 1) {
+            return '<span class="badge bg-info">รีเซ็ต</span>';
+        }
+        if ($bwCnt > 0 && $bwUnpaid === 0) {
+            return '<span class="badge bg-primary">ชำระแล้ว</span>';
+        }
+        return '<span class="badge bg-success">อนุมัติ</span>';
+    }
+    return '<span class="badge bg-secondary">-</span>';
 }
 ?>
 
@@ -118,7 +139,7 @@ function getBorrowStatus($status_id) {
                                     <td class="text-center"><?php echo getBorrowType($row['br_type']); ?></td>
                                     <td class="text-end fw-bold"><?php echo number_format($row['br_amount']); ?></td>
                                     <td class="text-center"><?php echo date('d/m/Y', strtotime($row['br_date_request'])); ?></td>
-                                    <td class="text-center"><?php echo getBorrowStatus($row['br_status']); ?></td>
+                                    <td class="text-center"><?php echo getBorrowRequestDisplayStatus($row); ?></td>
                                     <td class="text-center">
                                         <a href="approve.php?br_id=<?php echo htmlspecialchars($row['br_id']); ?>" class="btn btn-info btn-sm">
                                             <i class="fas fa-search"></i> ตรวจสอบ
@@ -244,38 +265,48 @@ function getBorrowStatus($status_id) {
                     <input type="hidden" name="br_is_reset" id="br_is_reset" value="0">
                     <input type="hidden" name="br_reset_br_id" id="br_reset_br_id" value="">
 
+                    <div id="both_types_debt_note" style="display:none;" class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-warning border-warning py-2 mb-0 small">
+                                <i class="fas fa-info-circle me-1"></i>
+                                มียอดค้างทั้ง<strong>เงินกู้สามัญ</strong>และ<strong>เงินกู้ฉุกเฉิน</strong> — การเพิ่มคำขอในแต่ละประเภทต้องเป็นการ <strong>รีเซ็ต (ปิดยอดเดิมแล้วกู้รอบใหม่)</strong> เท่านั้น
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="reset_section" style="display:none;" class="row mb-3">
                         <div class="col-sm-9 offset-sm-3">
                             <div class="alert alert-danger border-danger py-2 mb-0">
                                 <div class="d-flex gap-2">
                                     <i class="fas fa-sync-alt text-danger mt-1"></i>
                                     <div class="w-100">
-                                        <strong class="text-danger">คำเตือน: มีสัญญาเงินกู้ประเภทนี้ที่ยังค้างชำระ</strong>
+                                        <strong class="text-danger">มียอดค้างชำระในประเภทนี้ — ต้องปิดยอดเดิมแล้วกู้ใหม่</strong>
                                         <p class="mb-1 mt-1 small" id="reset_info_text"></p>
+                                        <p class="mb-0 small text-muted">เมื่ออนุมัติสัญญาใหม่ ระบบจะตั้งงวดค้างของสัญญาเดิมให้ <strong>ยกเลิก (ยกเลิกการชำระ)</strong> แล้วสร้างตารางงวดใหม่</p>
                                         
-                                        <div id="reset_calc_section" class="p-2 mb-2 bg-white rounded border border-danger small" style="display:none;">
+                                        <div id="reset_calc_section" class="p-2 my-2 bg-white rounded border border-danger small" style="display:none;">
                                             <div class="d-flex justify-content-between mb-1">
-                                                <span>วงเงินกู้ใหม่:</span>
+                                                <span>วงเงินกู้ใหม่ (คำขอ):</span>
                                                 <strong id="calc_new_amt">0 บาท</strong>
                                             </div>
                                             <div class="d-flex justify-content-between mb-1 text-danger">
-                                                <span>หักยอดหนี้คงเหลือเดิม:</span>
+                                                <span>หักยอดหนี้คงเหลือเดิม (ประมาณ):</span>
                                                 <strong id="calc_old_bal">0 บาท</strong>
                                             </div>
                                             <hr class="my-1">
                                             <div class="d-flex justify-content-between text-success">
-                                                <span>ยอดเงินที่คาดว่าจะได้รับจริง:</span>
+                                                <span>ยอดเงินสุทธิที่คาดว่าได้รับ (หลังหัก):</span>
                                                 <strong id="calc_receive_amt">0 บาท</strong>
                                             </div>
                                             <div id="calc_error" class="text-danger mt-1 fw-bold text-center" style="display:none;">
-                                                <i class="fas fa-exclamation-circle"></i> วงเงินที่กู้ใหม่ต้องมากกว่ายอดหนี้คงเหลือเดิม
+                                                <i class="fas fa-exclamation-circle"></i> วงเงินกู้ใหม่ต้องมากกว่ายอดหนี้คงเหลือเดิม
                                             </div>
                                         </div>
 
                                         <div class="form-check">
                                             <input type="checkbox" class="form-check-input" id="confirm_reset">
                                             <label class="form-check-label fw-semibold text-danger" for="confirm_reset">
-                                                ยืนยันการกู้เพิ่ม (นำยอดเดิมมารวมและคำนวณงวดจ่ายใหม่ เมื่ออนุมัติ)
+                                                ยืนยันต้องการปิดยอดเดิม ยกเลิกงวดค้าง แล้วอนุมัติกู้รอบใหม่
                                             </label>
                                         </div>
                                     </div>
@@ -345,7 +376,7 @@ function getBorrowStatus($status_id) {
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> บันทึกคำขอ</button>
+                    <button type="submit" class="btn btn-success" id="btnSubmitAddBorrow"><i class="fas fa-save"></i> บันทึกคำขอ</button>
                 </div>
             </form>
         </div>
@@ -442,6 +473,7 @@ document.addEventListener("DOMContentLoaded", function() {
             memIdHidden.value = '';
             selectedMemStatus = null;
             updateCommonLoanLimit();
+            if (typeof checkActiveLoanForAdmin === 'function') checkActiveLoanForAdmin();
         }
     });
     memSearch.addEventListener('blur', function() {
@@ -468,6 +500,8 @@ document.addEventListener("DOMContentLoaded", function() {
         if (g2Id) { g2Id.value = ''; }
         if (document.getElementById('guarantor1Dropdown')) document.getElementById('guarantor1Dropdown').style.display = 'none';
         if (document.getElementById('guarantor2Dropdown')) document.getElementById('guarantor2Dropdown').style.display = 'none';
+        var bnote = document.getElementById('both_types_debt_note');
+        if (bnote) bnote.style.display = 'none';
     });
 
     // 2. Logic สลับประเภทเงินกู้ (Common vs Emergency)
@@ -489,28 +523,48 @@ document.addEventListener("DOMContentLoaded", function() {
         var confirmReset = document.getElementById('confirm_reset');
         var resetInfo = document.getElementById('reset_info_text');
         var resetCalcSection = document.getElementById('reset_calc_section');
+        var bothNote = document.getElementById('both_types_debt_note');
 
-        if (mId && bType && window.activeLoansAll && window.activeLoansAll[mId] && window.activeLoansAll[mId][bType]) {
-            var activeLoan = window.activeLoansAll[mId][bType];
+        if (!mId || !bType) {
+            if (bothNote) bothNote.style.display = 'none';
+            if (resetSection) resetSection.style.display = 'none';
+            if (resetCalcSection) resetCalcSection.style.display = 'none';
+            if (brIsReset) brIsReset.value = '0';
+            if (brResetBrId) brResetBrId.value = '';
+            if (confirmReset) confirmReset.checked = false;
+            return;
+        }
+
+        var act = (window.activeLoansAll && window.activeLoansAll[mId]) ? window.activeLoansAll[mId] : {};
+        if (bothNote) {
+            bothNote.style.display = (act['1'] && act['2']) ? 'block' : 'none';
+        }
+
+        if (act[bType]) {
+            var activeLoan = act[bType];
             var typeName = bType == '1' ? 'เงินกู้สามัญ' : 'เงินกู้ฉุกเฉิน';
             var remainingPrincipal = Math.round((parseFloat(activeLoan.br_amount) / parseFloat(activeLoan.br_months_pay)) * parseFloat(activeLoan.unpaid_count));
-            activeLoan.remaining_principal = remainingPrincipal; // Store for calculation
+            activeLoan.remaining_principal = remainingPrincipal;
 
-            resetInfo.innerHTML =
-                'สัญญา' + typeName + ' เลขที่ <strong>#' + activeLoan.br_id + '</strong>' +
-                ' ยังเหลืออีก <strong>' + activeLoan.unpaid_count + '/' + activeLoan.br_months_pay + ' งวด</strong> (ยอดหนี้คงเหลือประมาณ <strong>' + Number(remainingPrincipal).toLocaleString('th-TH') + '</strong> บาท)';
-            resetSection.style.display = 'flex';
+            if (resetInfo) {
+                var line = 'สัญญา' + typeName + ' เลขที่ <strong>#' + activeLoan.br_id + '</strong>' +
+                    ' ยังเหลืออีก <strong>' + activeLoan.unpaid_count + '/' + activeLoan.br_months_pay + ' งวด</strong> (ยอดหนี้คงเหลือประมาณ <strong>' + Number(remainingPrincipal).toLocaleString('th-TH') + '</strong> บาท)';
+                if (act['1'] && act['2']) {
+                    line += '<br><span class="text-muted">มียอดค้างทั้งสองประเภท — คำขอในประเภทนี้ต้องใช้การรีเซ็ต/กู้รอบใหม่ (ติ๊กยืนยันด้านล่าง) ไม่สามารถกู้เพิ่มโดยไม่ปิดยอด</span>';
+                }
+                resetInfo.innerHTML = line;
+            }
+            if (resetSection) resetSection.style.display = 'flex';
             if (resetCalcSection) resetCalcSection.style.display = 'block';
-            brIsReset.value = '1';
-            brResetBrId.value = activeLoan.br_id;
+            if (brIsReset) brIsReset.value = '1';
+            if (brResetBrId) brResetBrId.value = activeLoan.br_id;
             if (confirmReset) confirmReset.checked = false;
-            
             if (typeof updateAdminResetCalc === 'function') updateAdminResetCalc();
         } else {
-            resetSection.style.display = 'none';
+            if (resetSection) resetSection.style.display = 'none';
             if (resetCalcSection) resetCalcSection.style.display = 'none';
-            brIsReset.value = '0';
-            brResetBrId.value = '';
+            if (brIsReset) brIsReset.value = '0';
+            if (brResetBrId) brResetBrId.value = '';
             if (confirmReset) confirmReset.checked = false;
         }
     }
@@ -609,9 +663,10 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
-    // Live Search ผู้ค้ำคนที่ 1 และ 2 (ใช้ memberList เหมือนช่องชื่อสมาชิก, ไม่แสดงชื่อผู้ขอกู้)
-    function renderGuarantorDropdown(filter, dropdownEl, searchEl, nameEl, idEl) {
+    // Live Search ผู้ค้ำคนที่ 1 และ 2 (ใช้ memberList เหมือนช่องชื่อสมาชิก, ไม่แสดงชื่อผู้ขอกู้ / ไม่แสดงผู้ค้ำอีกฝ่ายเพื่อไม่ให้ซ้ำกัน)
+    function renderGuarantorDropdown(filter, dropdownEl, searchEl, nameEl, idEl, excludeOtherGuarantorId) {
         var borrowerId = (memIdHidden && memIdHidden.value) ? memIdHidden.value.trim() : '';
+        var exOther = (excludeOtherGuarantorId || '').trim();
         var q = (filter || '').trim().toLowerCase();
         var list = q
             ? memList.filter(function(m) {
@@ -620,9 +675,13 @@ document.addEventListener("DOMContentLoaded", function() {
             })
             : memList.slice();
         list = list.filter(function(m) { return m.id !== borrowerId; });
+        if (exOther) {
+            list = list.filter(function(m) { return m.id !== exOther; });
+        }
         dropdownEl.innerHTML = '';
         if (list.length === 0) {
-            dropdownEl.innerHTML = '<div class="list-group-item text-muted">ไม่พบสมาชิก</div>';
+            var msg = exOther ? 'ไม่พบสมาชิก (หรือรายชื่อนี้ถูกใช้เป็นผู้ค้ำอีกฝ่ายแล้ว)' : 'ไม่พบสมาชิก';
+            dropdownEl.innerHTML = '<div class="list-group-item text-muted">' + msg + '</div>';
         } else {
             list.forEach(function(m) {
                 var a = document.createElement('a');
@@ -631,6 +690,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 a.textContent = m.name;
                 a.addEventListener('click', function(e) {
                     e.preventDefault();
+                    if (idEl === guarantor1Id && guarantor2Id && guarantor2Id.value === m.id) {
+                        return;
+                    }
+                    if (idEl === guarantor2Id && guarantor1Id && guarantor1Id.value === m.id) {
+                        return;
+                    }
                     if (searchEl) searchEl.value = m.name;
                     if (nameEl) nameEl.value = m.name;
                     if (idEl) idEl.value = m.id;
@@ -646,14 +711,14 @@ document.addEventListener("DOMContentLoaded", function() {
     var guarantor2Drop = document.getElementById('guarantor2Dropdown');
 
     if (guarantor1Search && guarantor1Drop) {
-        guarantor1Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search, guarantor1Name, guarantor1Id); });
-        guarantor1Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search, guarantor1Name, guarantor1Id); });
+        guarantor1Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search, guarantor1Name, guarantor1Id, (guarantor2Id && guarantor2Id.value) ? guarantor2Id.value : ''); });
+        guarantor1Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor1Search.value, guarantor1Drop, guarantor1Search, guarantor1Name, guarantor1Id, (guarantor2Id && guarantor2Id.value) ? guarantor2Id.value : ''); });
         guarantor1Drop.addEventListener('mousedown', function(e) { e.preventDefault(); });
         guarantor1Search.addEventListener('blur', function() { setTimeout(function() { guarantor1Drop.style.display = 'none'; }, 200); });
     }
     if (guarantor2Search && guarantor2Drop) {
-        guarantor2Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search, guarantor2Name, guarantor2Id); });
-        guarantor2Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search, guarantor2Name, guarantor2Id); });
+        guarantor2Search.addEventListener('focus', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search, guarantor2Name, guarantor2Id, (guarantor1Id && guarantor1Id.value) ? guarantor1Id.value : ''); });
+        guarantor2Search.addEventListener('input', function() { renderGuarantorDropdown(guarantor2Search.value, guarantor2Drop, guarantor2Search, guarantor2Name, guarantor2Id, (guarantor1Id && guarantor1Id.value) ? guarantor1Id.value : ''); });
         guarantor2Drop.addEventListener('mousedown', function(e) { e.preventDefault(); });
         guarantor2Search.addEventListener('blur', function() { setTimeout(function() { guarantor2Drop.style.display = 'none'; }, 200); });
     }

@@ -43,8 +43,12 @@ document.addEventListener("DOMContentLoaded", function(event) {
     
     // 2. DataTable Setup (หน้า mustpay ใช้ order ตามกำหนดชำระ)
     if ($.fn.DataTable) {
-        var dtOrder = (typeof window.MUSTPAY_ORDER !== 'undefined') ? window.MUSTPAY_ORDER : [[0, "desc"]];
-        $('#tableSearch').DataTable({
+        var dtOrder = (typeof window.DATATABLE_DEFAULT_ORDER !== 'undefined')
+            ? window.DATATABLE_DEFAULT_ORDER
+            : (typeof window.MUSTPAY_ORDER !== 'undefined')
+                ? window.MUSTPAY_ORDER
+                : [[0, "desc"]];
+        var dtOpts = {
             "order": dtOrder, 
             "pageLength": 25, 
             "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
@@ -63,7 +67,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 "infoEmpty": "ไม่มีข้อมูลแสดง",
                 "infoFiltered": "(กรองจากทั้งหมด _MAX_ รายการ)"
             }
-        });
+        };
+        if (typeof window.DATATABLE_COLUMN_DEFS !== 'undefined') {
+            dtOpts.columnDefs = window.DATATABLE_COLUMN_DEFS;
+        }
+        $('#tableSearch').DataTable(dtOpts);
     }
 });
 </script>

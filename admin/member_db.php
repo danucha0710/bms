@@ -92,38 +92,34 @@ if ($member == "add"){
 // =========================================================
 elseif ($member == "edit"){
     $mem_id_old = mysqli_real_escape_string($condb, $_POST["mem_id_old"]);
+    $q_cur = mysqli_query($condb, "SELECT mem_status, mem_amount_stock, mem_common_credit, mem_emergency_credit FROM member WHERE mem_id = '$mem_id_old' LIMIT 1");
+    $row_cur = $q_cur ? mysqli_fetch_assoc($q_cur) : null;
+    if (!$row_cur) {
+        Header("Location: list_mem.php?error=1");
+        exit;
+    }
+    $mem_status = mysqli_real_escape_string($condb, $row_cur['mem_status']);
+    $common_credit = (int) $row_cur['mem_common_credit'];
+    $emergency_credit = (int) $row_cur['mem_emergency_credit'];
+    $mem_amount_stock = (int) $row_cur['mem_amount_stock'];
+    if ($mem_amount_stock < 0) {
+        $mem_amount_stock = 0;
+    }
+
     $mem_username = mysqli_real_escape_string($condb, $_POST["mem_username"]);
-    $mem_status = mysqli_real_escape_string($condb, $_POST["mem_status"]);
     $mem_name   = mysqli_real_escape_string($condb, $_POST["mem_name"]);
     $mem_phone  = mysqli_real_escape_string($condb, $_POST["mem_phone"]);
     $mem_address = mysqli_real_escape_string($condb, $_POST["mem_address"]);
 
-    // วงเงินกู้: Admin(0) และ พนักงานคีย์ข้อมูล(1) ต้องเป็น 0; ครู(2)/เจ้าหน้าที่(3) ใช้ค่าจากฟอร์มแต่ไม่เกินที่ตั้งในระบบ
-    if ($mem_status == '0' || $mem_status == '1') {
-        $common_credit = 0;
-        $emergency_credit = 0;
-        $mem_stock_savings = 0;
-        $mem_amount_stock = 0;
-    } else {
-        $rs_sys = mysqli_query($condb, "SELECT st_max_amount_common_teacher, st_max_amount_common_officer, st_max_amount_emergency, st_min_stock_savings, st_max_stock_savings FROM `system` WHERE st_id = 1");
-        $row_sys = $rs_sys ? mysqli_fetch_assoc($rs_sys) : null;
-        $max_common = 0;
-        $max_emergency = isset($row_sys['st_max_amount_emergency']) ? (int)$row_sys['st_max_amount_emergency'] : 0;
-        if ($mem_status == '2') {
-            $max_common = isset($row_sys['st_max_amount_common_teacher']) ? (int)$row_sys['st_max_amount_common_teacher'] : 0;
-        } elseif ($mem_status == '3') {
-            $max_common = isset($row_sys['st_max_amount_common_officer']) ? (int)$row_sys['st_max_amount_common_officer'] : 0;
-        }
-        $common_credit = (int) $_POST["common_credit"];
-        $emergency_credit = (int) $_POST["emergency_credit"];
-        if ($common_credit > $max_common) $common_credit = $max_common;
-        if ($emergency_credit > $max_emergency) $emergency_credit = $max_emergency;
-        if ($common_credit < 0) $common_credit = 0;
-        if ($emergency_credit < 0) $emergency_credit = 0;
+    $rs_sys = mysqli_query($condb, "SELECT st_max_amount_common_teacher, st_max_amount_common_officer, st_max_amount_emergency, st_min_stock_savings, st_max_stock_savings FROM `system` WHERE st_id = 1");
+    $row_sys = $rs_sys ? mysqli_fetch_assoc($rs_sys) : null;
+    $min_stock = isset($row_sys['st_min_stock_savings']) ? (int)$row_sys['st_min_stock_savings'] : 0;
+    $max_stock = isset($row_sys['st_max_stock_savings']) ? (int)$row_sys['st_max_stock_savings'] : 0;
 
-        // เงินออมหุ้น/เดือน: ครู/เจ้าหน้าที่ ใช้ค่าจากฟอร์มและจำกัดตามที่ตั้งในระบบ
-        $min_stock = isset($row_sys['st_min_stock_savings']) ? (int)$row_sys['st_min_stock_savings'] : 0;
-        $max_stock = isset($row_sys['st_max_stock_savings']) ? (int)$row_sys['st_max_stock_savings'] : 0;
+    // เงินออมหุ้น/เดือน: แอดมิน/คีย์ข้อมูล = 0; ครู/เจ้าหน้าที่ รับค่าจากฟอร์ม (จำกัดตามตั้งค่า)
+    if ($row_cur['mem_status'] == '0' || $row_cur['mem_status'] == '1') {
+        $mem_stock_savings = 0;
+    } else {
         $mem_stock_savings = isset($_POST["mem_stock_savings"]) ? (int)$_POST["mem_stock_savings"] : 0;
         if ($mem_stock_savings < $min_stock) {
             $mem_stock_savings = $min_stock;
@@ -134,9 +130,6 @@ elseif ($member == "edit"){
         if ($mem_stock_savings < 0) {
             $mem_stock_savings = 0;
         }
-
-        $mem_amount_stock = isset($_POST["mem_amount_stock"]) ? (int)$_POST["mem_amount_stock"] : 0;
-        if ($mem_amount_stock < 0) $mem_amount_stock = 0;
     }
 
     // จัดการรหัสผ่านแบบใหม่

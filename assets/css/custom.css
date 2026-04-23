@@ -82,3 +82,13 @@ body {
 .card-success.card-outline { border-top: 3px solid #28a745; }
 .card-warning.card-outline { border-top: 3px solid #ffc107; }
 .card-danger.card-outline  { border-top: 3px solid #dc3545; }
+
+/* ป้ายสถานะคำขอ: สอดคล้อง material-dashboard (.badge.bg-*) — BS5 .text-bg-* ไม่ถูกธีมครอบคลุม จึง map สีเดียวกัน */
+.badge.text-bg-warning {
+  background-color: #fb8c00 !important;
+  color: #212529 !important;
+}
+.badge.text-bg-danger { background-color: #F44335 !important; }
+.badge.text-bg-primary { background-color: #e91e63 !important; }
+.badge.text-bg-info { background-color: #1A73E8 !important; }
+.badge.text-bg-success { background-color: #4CAF50 !important; }

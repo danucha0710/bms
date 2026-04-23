@@ -82,13 +82,19 @@ function getGuaranteeText($type){
                    <span class="badge <?php echo ($value['br_type']==1)?'bg-primary':'bg-danger'; ?> fs-6">
                        <?php echo getTypeText($value['br_type']); ?>
                    </span>
-                   <?php if (!empty($value['br_is_reset']) && (int)$value['br_is_reset'] === 1): ?>
-                   <span class="badge bg-warning text-dark fs-6">
-                       <i class="fas fa-sync-alt me-1"></i> รีเซ็ทสัญญา
+                   <?php
+                   $predBr = isset($value['br_reset_br_id']) ? (int) $value['br_reset_br_id'] : 0;
+                   $isResetRow = isset($value['br_is_reset']) ? (int) $value['br_is_reset'] : 0;
+                   if ($isResetRow === 1 && $predBr > 0): ?>
+                   <span class="badge bg-info fs-6">
+                       <i class="fas fa-sync-alt me-1"></i> สัญญาเดิมถูกรีเซ็ต
                    </span>
-                   <?php if (!empty($value['br_reset_br_id'])): ?>
-                   <span class="text-muted small">(ยกเลิกงวดที่เหลือของสัญญา #<?php echo (int)$value['br_reset_br_id']; ?> เมื่ออนุมัติ)</span>
-                   <?php endif; ?>
+                   <span class="text-muted small">(สัญญาใหม่ #<?php echo $predBr; ?>)</span>
+                   <?php elseif ($predBr > 0 && $isResetRow === 0): ?>
+                   <span class="badge bg-warning text-dark fs-6">
+                       <i class="fas fa-sync-alt me-1"></i> กู้แทนสัญญาเดิม
+                   </span>
+                   <span class="text-muted small">(ยกเลิกงวดที่เหลือของสัญญา #<?php echo $predBr; ?> เมื่ออนุมัติ)</span>
                    <?php endif; ?>
                 </div>
               </div>
